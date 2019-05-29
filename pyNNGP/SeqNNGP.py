@@ -1,6 +1,7 @@
 from . import _pyNNGP
 import numpy as np
 
+
 class SeqNNGP:
     def __init__(self, y, X, coords, nNeighbors, covModel, noiseModel):
         self.X = np.ascontiguousarray(np.atleast_2d(X))
@@ -12,9 +13,14 @@ class SeqNNGP:
         self.noiseModel = noiseModel
 
         self._SeqNNGP = _pyNNGP.SeqNNGP(
-            self.y.ctypes.data, self.X.ctypes.data, self.coords.ctypes.data,
-            self.X.shape[1], self.X.shape[0], self.nNeighbors,
-            self.covModel, self.noiseModel
+            self.y.ctypes.data,
+            self.X.ctypes.data,
+            self.coords.ctypes.data,
+            self.X.shape[1],
+            self.X.shape[0],
+            self.nNeighbors,
+            self.covModel,
+            self.noiseModel,
         )
 
     def sample(self, N):

@@ -9,9 +9,9 @@ def make_nnIndx(coords, m):
         if i == 0:
             continue
         # Find the m nearest neighbors out of first i-1 points
-        dists = np.sqrt(np.sum((coords[:i] - coord)**2, axis=1))
+        dists = np.sqrt(np.sum((coords[:i] - coord) ** 2, axis=1))
         s = np.argsort(dists)
-        neighbors = s[:min(i, m)]
+        neighbors = s[: min(i, m)]
         nnIndx.extend(list(neighbors))
         nnDist.extend(list(dists[neighbors]))
     return np.array(nnIndx), np.array(nnDist)
@@ -24,14 +24,14 @@ def make_uIndx(n, m, nnIndx):
     for i in range(n):
         isANeighbor = []
         which = []
-        for j in range(i+1, n):
+        for j in range(i + 1, n):
             # Look through the jth part of nnIndx for i
             if j < m:
-                nnStart = j*(j-1)//2
-                nnEnd = j*(j+1)//2
+                nnStart = j * (j - 1) // 2
+                nnEnd = j * (j + 1) // 2
             else:
-                nnStart = m*(m-1)//2 + m*(j-m)
-                nnEnd = m*(m-1)//2 + m*(j+1-m)
+                nnStart = m * (m - 1) // 2 + m * (j - m)
+                nnEnd = m * (m - 1) // 2 + m * (j + 1 - m)
             try:
                 k = list(nnIndx[nnStart:nnEnd]).index(i)
             except:
@@ -42,7 +42,7 @@ def make_uIndx(n, m, nnIndx):
         uIndx.extend(list(np.sort(isANeighbor)))
         uIndxU.append(len(isANeighbor))
         uiIndx.extend(which)
-    uIndxL = [0]+list(np.cumsum(uIndxU)[:-1])
+    uIndxL = [0] + list(np.cumsum(uIndxU)[:-1])
     return np.array(uIndx), np.hstack([uIndxL, uIndxU]), np.array(uiIndx)
 
 
@@ -50,7 +50,7 @@ def make_nnIndxLU(n, m):
     nnIndxU = []
     for i in range(n):
         nnIndxU.append(min(i, m))
-    nnIndxL = [0]+list(np.cumsum(nnIndxU)[:-1])
+    nnIndxL = [0] + list(np.cumsum(nnIndxU)[:-1])
     return np.hstack([nnIndxL, nnIndxU])
 
 
@@ -64,11 +64,13 @@ def test_indices():
     coords = np.random.uniform(size=(n, 2))
 
     phi = 6.0
-    phiA, phiB = 3.0, 3./0.01
+    phiA, phiB = 3.0, 3.0 / 0.01
     phiTuning = 0.5
     sigmaSq = 5.0
     sigmaSqIGa, sigmaSqIGb = 2.0, 5.0
-    covModel = pyNNGP.Exponential(sigmaSq, phi, phiA, phiB, phiTuning, sigmaSqIGa, sigmaSqIGb)
+    covModel = pyNNGP.Exponential(
+        sigmaSq, phi, phiA, phiB, phiTuning, sigmaSqIGa, sigmaSqIGb
+    )
 
     tauSq = 1.0
     tauSqIGa = 1.0
@@ -89,11 +91,14 @@ def test_indices():
 
     # Test nnDist
     for i in range(n):
-        for k in range(nnIndxLU[n+i]):
-            assert nnDist[nnIndxLU[i]+k] == np.sqrt(np.sum((coords[i]-coords[nnIndx[nnIndxLU[i]+k]])**2))
+        for k in range(nnIndxLU[n + i]):
+            assert nnDist[nnIndxLU[i] + k] == np.sqrt(
+                np.sum((coords[i] - coords[nnIndx[nnIndxLU[i] + k]]) ** 2)
+            )
 
     snngp.sample(10)
     assert np.all(np.isfinite(snngp.w))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     test_indices()
