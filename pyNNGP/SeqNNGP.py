@@ -16,6 +16,7 @@ class SeqNNGP:
             self.y.ctypes.data,
             self.X.ctypes.data,
             self.coords.ctypes.data,
+            self.coords.shape[1],
             self.X.shape[1],
             self.X.shape[0],
             self.nNeighbors,

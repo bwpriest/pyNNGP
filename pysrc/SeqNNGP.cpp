@@ -7,13 +7,14 @@
 namespace py = pybind11;
 
 namespace pyNNGP {
-static SeqNNGP* MakeSeqNNGP(size_t iy, size_t iX, size_t icoords, int p, int n,
-                            int nNeighbors, CovModel& cm, NoiseModel& nm) {
+static SeqNNGP* MakeSeqNNGP(size_t iy, size_t iX, size_t icoords, int d, int p,
+                            int n, int nNeighbors, CovModel& cm,
+                            NoiseModel& nm) {
   const double* y = reinterpret_cast<double*>(iy);
   const double* X = reinterpret_cast<double*>(iX);
   const double* coords = reinterpret_cast<double*>(icoords);
 
-  return new SeqNNGP(y, X, coords, p, n, nNeighbors, cm, nm);
+  return new SeqNNGP(y, X, coords, d, p, n, nNeighbors, cm, nm);
 }
 
 void pyExportSeqNNGP(py::module& m) {

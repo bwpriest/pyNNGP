@@ -31,22 +31,24 @@ void getNNIndx(int i, int m, int& iNNIndx, int& iNN) {
 
 Node::Node(int i) : index(i), left(nullptr), right(nullptr) {}
 
-Node* miniInsert(Node* Tree, const MatrixXd& coords, int index, int d) {
+Node* miniInsert(Node* Tree, const MatrixXd& coords, const int index,
+                 const int dim, const int d) {
   // 2D-tree
   if (!Tree) return new Node(index);
 
-  if (coords(d, index) <= coords(d, Tree->index))
-    Tree->left = miniInsert(Tree->left, coords, index, (d + 1) % 2);
-  else
-    Tree->right = miniInsert(Tree->right, coords, index, (d + 1) % 2);
+  if (coords(dim, index) <= coords(dim, Tree->index)) {
+    Tree->left = miniInsert(Tree->left, coords, index, (dim + 1) % d, d);
+  } else {
+    Tree->right = miniInsert(Tree->right, coords, index, (dim + 1) % d, d);
+  }
   return Tree;
 }
 
-void get_nn(Node* Tree, int index, int d, const MatrixXd& coords,
-            double* nnDist, int* nnIndx, int iNNIndx, int iNN) {
+void get_nn(Node* Tree, const int index, const int dim, const int d,
+            const MatrixXd& coords, double* nnDist, int* nnIndx, int iNNIndx,
+            int iNN) {
   // input: Tree, index, d, coords
   // output: nnDist, nnIndx
-
   if (!Tree) return;
 
   double disttemp = dist2(coords.col(index), coords.col(Tree->index));
@@ -60,18 +62,19 @@ void get_nn(Node* Tree, int index, int d, const MatrixXd& coords,
   Node* temp1 = Tree->left;
   Node* temp2 = Tree->right;
 
-  if (coords(d, index) > coords(d, Tree->index)) std::swap(temp1, temp2);
-  get_nn(temp1, index, (d + 1) % 2, coords, nnDist, nnIndx, iNNIndx, iNN);
-  if (fabs(coords(d, Tree->index) - coords(d, index)) >
+  if (coords(dim, index) > coords(dim, Tree->index)) std::swap(temp1, temp2);
+  get_nn(temp1, index, (dim + 1) % d, d, coords, nnDist, nnIndx, iNNIndx, iNN);
+  if (fabs(coords(dim, Tree->index) - coords(dim, index)) >
       nnDist[iNNIndx + iNN - 1])
     return;
-  get_nn(temp2, index, (d + 1) % 2, coords, nnDist, nnIndx, iNNIndx, iNN);
+  get_nn(temp2, index, (dim + 1) % d, d, coords, nnDist, nnIndx, iNNIndx, iNN);
 }
 
-void mkNNIndxTree0(const int n, const int m, const MatrixXd& coords,
-                   int* nnIndx, double* nnDist, int* nnIndxLU) {
+void mkNNIndxTree0(const int n, const int m, const int d,
+                   const MatrixXd& coords, int* nnIndx, double* nnDist,
+                   int* nnIndxLU) {
   int i, iNNIndx, iNN;
-  double d;
+  double distance;
   int nIndx = ((1 + m) * m) / 2 + (n - m - 1) * m;
   // Results seem to depend on BUCKETSIZE, which seems weird...
   int BUCKETSIZE = 10;
@@ -91,9 +94,10 @@ void mkNNIndxTree0(const int n, const int m, const MatrixXd& coords,
     if (i != 0) {
       for (int j = time_through; j < i; j++) {
         getNNIndx(i, m, iNNIndx, iNN);
-        d = dist2(coords.col(i), coords.col(j));
-        if (d < nnDist[iNNIndx + iNN - 1]) {
-          nnDist[iNNIndx + iNN - 1] = d;
+        distance =
+            dist2(coords.col(i), coords.col(j));  // Assuming euclidean distance
+        if (distance < nnDist[iNNIndx + iNN - 1]) {
+          nnDist[iNNIndx + iNN - 1] = distance;
           nnIndx[iNNIndx + iNN - 1] = j;
           rsort_with_index(&nnDist[iNNIndx], &nnIndx[iNNIndx], iNN);
         }
@@ -104,11 +108,11 @@ void mkNNIndxTree0(const int n, const int m, const MatrixXd& coords,
 #endif
         for (int j = time_through; j < time_through + BUCKETSIZE; j++) {
           getNNIndx(j, m, iNNIndx, iNN);
-          get_nn(Tree, j, 0, coords, nnDist, nnIndx, iNNIndx, iNN);
+          get_nn(Tree, j, 0, d, coords, nnDist, nnIndx, iNNIndx, iNN);
         }
 
         for (int j = time_through; j < time_through + BUCKETSIZE; j++)
-          Tree = miniInsert(Tree, coords, j, 0);
+          Tree = miniInsert(Tree, coords, j, 0, d);
 
         time_through = -1;
       }
@@ -118,11 +122,11 @@ void mkNNIndxTree0(const int n, const int m, const MatrixXd& coords,
 #endif
         for (int j = time_through; j < n; j++) {
           getNNIndx(j, m, iNNIndx, iNN);
-          get_nn(Tree, j, 0, coords, nnDist, nnIndx, iNNIndx, iNN);
+          get_nn(Tree, j, 0, d, coords, nnDist, nnIndx, iNNIndx, iNN);
         }
       }
     } else {  // i==0
-      Tree = miniInsert(Tree, coords, i, 0);
+      Tree = miniInsert(Tree, coords, i, 0, d);
       time_through = -1;
     }
   }

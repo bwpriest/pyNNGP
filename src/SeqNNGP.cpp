@@ -17,15 +17,16 @@ using Eigen::VectorXi;
 
 namespace pyNNGP {
 SeqNNGP::SeqNNGP(const double* _y, const double* _X, const double* _coords,
-                 int _p, int _n, int _m, CovModel& _cm, NoiseModel& _nm)
-    : p(_p),
+                 int _d, int _p, int _n, int _m, CovModel& _cm, NoiseModel& _nm)
+    : d(_d),
+      p(_p),
       n(_n),
       m(_m),
       nIndx(m * (m + 1) / 2 + (n - m - 1) * m),
       y(_y, n),
       Xt(_X, p, n),
-      coords(_coords, 2,
-             n),  // Note n x m in python is m x n in Eigen (by default).
+      coords(_coords, d,
+             n),  // Note n x d in python is d x n in Eigen (by default).
       cm(_cm),
       nm(_nm),
       gen(rd()),
@@ -38,7 +39,7 @@ SeqNNGP::SeqNNGP(const double* _y, const double* _X, const double* _coords,
 
   std::cout << "Finding neighbors" << '\n';
   auto start = std::chrono::high_resolution_clock::now();
-  mkNNIndxTree0(n, m, coords, &nnIndx[0], &nnDist[0], &nnIndxLU[0]);
+  mkNNIndxTree0(n, m, d, coords, &nnIndx[0], &nnDist[0], &nnIndxLU[0]);
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> diff = end - start;
   std::cout << "duration = " << diff.count() << "s" << '\n';

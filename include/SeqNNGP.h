@@ -13,8 +13,8 @@ class CovModel;
 class NoiseModel;
 class SeqNNGP {
  public:
-  SeqNNGP(const double* _y, const double* _X, const double* _coords, int _p,
-          int _n, int _m, CovModel& _cm, NoiseModel& _nm);
+  SeqNNGP(const double* _y, const double* _X, const double* _coords, int _d,
+          int _p, int _n, int _m, CovModel& _cm, NoiseModel& _nm);
 
   // Allocate our own memory for these
   // Nearest neighbors index.  Holds the indices of the neighbors of each node.
@@ -37,7 +37,8 @@ class SeqNNGP {
   std::vector<int> uiIndx;  // [nIndx]
   std::vector<int> CIndx;   // [2*n]
 
-  const int p;      // Number of indicators per input location
+  const int d;      // Number of input dimensions
+  const int p;      // Number of indicators per input locatios
   const int n;      // Number of input locations
   const int m;      // Number of nearest neighbors
   const int nIndx;  // Total number of neighbors (DAG edges)
@@ -45,7 +46,7 @@ class SeqNNGP {
   // Use existing memory here (allocated in python-layer)
   const Eigen::Map<const VectorXd> y;       // [n]
   const Eigen::Map<const MatrixXd> Xt;      // [p, n]  ([n, p] in python)
-  const Eigen::Map<const MatrixXd> coords;  // [2, n]  ([n, 2] in python)
+  const Eigen::Map<const MatrixXd> coords;  // [d, n]  ([n, d] in python)
 
   CovModel& cm;    // Model for GP covariances
   NoiseModel& nm;  // Model for additional measurement noise
