@@ -9,8 +9,6 @@ using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
 namespace pyNNGP {
-double dist2(double a1, double b1, double a2, double b2);
-double dist2(const VectorXd& a, const VectorXd& b);
 int which(int a, int* b, int n);
 
 template <typename... Args>

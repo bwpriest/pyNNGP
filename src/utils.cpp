@@ -5,12 +5,6 @@
 #include <random>
 
 namespace pyNNGP {
-double dist2(double a1, double a2, double b1, double b2) {
-  return std::sqrt((a1 - b1) * (a1 - b1) + (a2 - b2) * (a2 - b2));
-}
-
-double dist2(const VectorXd& a, const VectorXd& b) { return (a - b).norm(); }
-
 // variadic template utility for apply_permutation
 template <typename T>
 void swap_at(int idx1, int idx2, T& a) {

@@ -42,7 +42,7 @@ SeqNNGP::SeqNNGP(const double* _y, const double* _X, const double* _coords,
 
   std::cout << "Finding neighbors" << '\n';
   auto start = std::chrono::high_resolution_clock::now();
-  mkNNIndxTree0(n, m, d, coords, &nnIndx[0], &nnDist[0], &nnIndxLU[0]);
+  mkNNIndxTree0(n, m, d, df, coords, &nnIndx[0], &nnDist[0], &nnIndxLU[0]);
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> diff = end - start;
   std::cout << "duration = " << diff.count() << "s" << '\n';
@@ -144,8 +144,16 @@ void SeqNNGP::mkCD() {
       for (int ell = 0; ell <= k; ell++) {       // lower triangular elements
         int i1 = nnIndx[nnIndxLU[i] + k];
         int i2 = nnIndx[nnIndxLU[i] + ell];
+        // Currently assuming that the kernel function depends upon the distance
+        // measure, e.g. isotropic kernel functions are paired with euclidean
+        // distance, whereas dot product kernel functions are paired implicitly
+        // with cosine similarity. Failing to correctly pair kernel functions
+        // with distance metrics will result in unexpected behavior.
+        //
+        // It might be best to hide this dependence by placing the DistFunc
+        // inside the CovModel later.
         D[CIndx[i] + ell * nnIndxLU[n + i] + k] =
-            dist2(coords.col(i1), coords.col(i2));
+            df(coords.col(i1), coords.col(i2));
       }
     }
   }
@@ -169,7 +177,7 @@ void SeqNNGP::updateBF(double* B, double* F, CovModel& cm) {
       for (k = 0; k < nnIndxLU[n + i]; k++) {
         c[nnIndxLU[i] + k] = cm.cov(nnDist[nnIndxLU[i] + k]);
         assert(nnDist[nnIndxLU[i] + k] ==
-               dist2(coords.col(i), coords.col(nnIndx[nnIndxLU[i] + k])));
+               df(coords.col(i), coords.col(nnIndx[nnIndxLU[i] + k])));
         for (ell = 0; ell <= k; ell++) {
           C[CIndx[i] + ell * nnIndxLU[n + i] + k] =
               cm.cov(D[CIndx[i] + ell * nnIndxLU[n + i] + k]);
