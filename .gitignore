@@ -38,3 +38,9 @@ pyNNGP.egg-info/
 *.out
 *.app
 .clang_complete
+
+# Emacs
+*~
+
+# Formatting
+.clang-format
