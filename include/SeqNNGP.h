@@ -11,10 +11,12 @@ using Eigen::VectorXd;
 namespace pyNNGP {
 class CovModel;
 class NoiseModel;
+class DistFunc;
 class SeqNNGP {
  public:
   SeqNNGP(const double* _y, const double* _X, const double* _coords, int _d,
-          int _p, int _n, int _m, CovModel& _cm, NoiseModel& _nm);
+          int _p, int _n, int _m, CovModel& _cm, DistFunc& _df,
+          NoiseModel& _nm);
 
   // Allocate our own memory for these
   // Nearest neighbors index.  Holds the indices of the neighbors of each node.
@@ -52,6 +54,7 @@ class SeqNNGP {
 
   CovModel& cm;    // Model for GP covariances
   NoiseModel& nm;  // Model for additional measurement noise
+  DistFunc& df;
 
   std::random_device rd;
   std::mt19937 gen;

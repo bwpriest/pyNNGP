@@ -6,3 +6,4 @@ from ._pyNNGP import (
     ConstHomogeneousNoiseModel,
     ConstHeterogeneousNoiseModel,
 )
+from ._pyNNGP import Euclidean

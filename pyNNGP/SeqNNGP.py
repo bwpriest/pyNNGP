@@ -3,13 +3,16 @@ import numpy as np
 
 
 class SeqNNGP:
-    def __init__(self, y, X, coords, nNeighbors, covModel, noiseModel):
+    def __init__(
+        self, y, X, coords, nNeighbors, covModel, distFunc, noiseModel
+    ):
         self.X = np.ascontiguousarray(np.atleast_2d(X))
         self.y = np.ascontiguousarray(np.atleast_1d(y))
         # Sort by coords[:, 0] first?
         self.coords = np.ascontiguousarray(np.atleast_2d(coords))
         self.nNeighbors = nNeighbors
         self.covModel = covModel
+        self.distFunc = distFunc
         self.noiseModel = noiseModel
 
         self._SeqNNGP = _pyNNGP.SeqNNGP(
@@ -21,6 +24,7 @@ class SeqNNGP:
             self.X.shape[0],
             self.nNeighbors,
             self.covModel,
+            self.distFunc,
             self.noiseModel,
         )
 

@@ -2,19 +2,20 @@
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include "covModel.h"
+#include "distFunc.h"
 #include "noiseModel.h"
 
 namespace py = pybind11;
 
 namespace pyNNGP {
 static SeqNNGP* MakeSeqNNGP(size_t iy, size_t iX, size_t icoords, int d, int p,
-                            int n, int nNeighbors, CovModel& cm,
+                            int n, int nNeighbors, CovModel& cm, DistFunc& df,
                             NoiseModel& nm) {
   const double* y = reinterpret_cast<double*>(iy);
   const double* X = reinterpret_cast<double*>(iX);
   const double* coords = reinterpret_cast<double*>(icoords);
 
-  return new SeqNNGP(y, X, coords, d, p, n, nNeighbors, cm, nm);
+  return new SeqNNGP(y, X, coords, d, p, n, nNeighbors, cm, df, nm);
 }
 
 void pyExportSeqNNGP(py::module& m) {

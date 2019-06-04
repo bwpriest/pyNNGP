@@ -16,6 +16,7 @@ set(PYSRC_FILES
   pysrc/SeqNNGP.cpp
   pysrc/CovModel.cpp
   pysrc/NoiseModel.cpp
+  pysrc/DistFunc.cpp
 )
 set(SRC_FILES
   src/SeqNNGP.cpp

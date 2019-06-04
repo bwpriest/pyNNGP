@@ -18,7 +18,8 @@ using Eigen::VectorXi;
 
 namespace pyNNGP {
 SeqNNGP::SeqNNGP(const double* _y, const double* _X, const double* _coords,
-                 int _d, int _p, int _n, int _m, CovModel& _cm, NoiseModel& _nm)
+                 int _d, int _p, int _n, int _m, CovModel& _cm, DistFunc& _df,
+                 NoiseModel& _nm)
     : d(_d),
       p(_p),
       n(_n),
@@ -29,6 +30,7 @@ SeqNNGP::SeqNNGP(const double* _y, const double* _X, const double* _coords,
       coords(_coords, d,
              n),  // Note n x d in python is d x n in Eigen (by default).
       cm(_cm),
+      df(_df),
       nm(_nm),
       gen(rd()),
       w(VectorXd::Zero(n)) {
