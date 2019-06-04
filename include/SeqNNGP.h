@@ -65,11 +65,16 @@ class SeqNNGP {
   std::vector<double> F;      // [n]
   std::vector<double> Bcand;  // [nIndx]
   std::vector<double> Fcand;  // [n]
-  std::vector<double> c;      // [nIndx]
-  std::vector<double> C;      // [~n*m*m]
-  std::vector<double> D;      // [~n*m*m]
-  VectorXd w;                 // [n] Latent GP samples
-  VectorXd beta;              // [p] Unknown linear model coefficients
+  // stacked q x mq cross-covariance matrices C_{s_i, N(s_i)} between w(s_i) and
+  // w_{N(s_i)}.
+  // We appear to be assuming q = 1 for now.
+  std::vector<double> c;  // [nIndx]
+  // stacked ~ (m x m) covariance matrices C_{N(s_i)}.
+  std::vector<double> C;  // [~n*m*m]
+  // stacked ~ (m x m) cross pairwise distances for N(s_i).
+  std::vector<double> D;  // [~n*m*m]
+  VectorXd w;             // [n] Latent GP samples
+  VectorXd beta;          // [p] Unknown linear model coefficients
 
   void sample(int nSamples);  // One Gibbs iteration
 

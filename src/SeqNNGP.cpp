@@ -203,18 +203,13 @@ void SeqNNGP::updateW() {
     double a = 0.0;
     double v = 0.0;
     if (uIndxLU[n + i] > 0) {  // is i a neighbor for anybody
-      for (int j = 0; j < uIndxLU[n + i];
-           j++) {  // how many location have i as a neighbor
+      for (int j = 0; j < uIndxLU[n + i]; j++) {
+        // for each location neighboring i
         double b = 0.0;
-        // now the neighbors for the jth location who has i as a neighbor
-        int jj = uIndx[uIndxLU[i] + j];  // jj is the index of the jth location
-                                         // who has i as a neighbor
-        for (int k = 0; k < nnIndxLU[n + jj];
-             k++) {  // these are the neighbors of the jjth location
-          int kk =
-              nnIndx[nnIndxLU[jj] +
-                     k];  // kk is the index for the jth locations neighbors
-          if (kk != i) {  // if the neighbor of jj is not i
+        int jj = uIndx[uIndxLU[i] + j];  // index of i's jth neighbor
+        for (int k = 0; k < nnIndxLU[n + jj]; k++) {  // for each neighboring jj
+          int kk = nnIndx[nnIndxLU[jj] + k];   // index of jj's kth neighbor
+          if (kk != i) {                       // if the neighbor of jj is not i
             b += B[nnIndxLU[jj] + k] * w[kk];  // covariance between jj and kk
                                                // and the random effect of kk
           }
