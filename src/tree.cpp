@@ -89,7 +89,7 @@ void mkNNIndxTree0(const int n, const int m, const int d,
     getNNIndx(i, m, iNNIndx, iNN);
     nnIndxLU[i] = iNNIndx;
     nnIndxLU[n + i] = iNN;
-    if (time_through == -1) time_through = i;
+    if (time_through == -1) { time_through = i; }
 
     if (i != 0) {
       for (int j = time_through; j < i; j++) {
@@ -111,8 +111,9 @@ void mkNNIndxTree0(const int n, const int m, const int d,
           get_nn(Tree, j, 0, d, coords, nnDist, nnIndx, iNNIndx, iNN);
         }
 
-        for (int j = time_through; j < time_through + BUCKETSIZE; j++)
+        for (int j = time_through; j < time_through + BUCKETSIZE; j++) {
           Tree = miniInsert(Tree, coords, j, 0, d);
+        }
 
         time_through = -1;
       }

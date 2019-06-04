@@ -1,5 +1,6 @@
 #include "SeqNNGP.h"
 #include "covModel.h"
+#include "distFunc.h"
 #include "noiseModel.h"
 #include "tree.h"
 #include "utils.h"
@@ -132,13 +133,13 @@ void SeqNNGP::mkCD() {
       CIndx[i] = CIndx[n + i - 1] + CIndx[i - 1];  // cumulative sum of above...
     }
   }
-
+  // j is now the sum of squares of neighbor counts
   C.resize(j);
   c.resize(nIndx);
   D.resize(j);
-  for (int i = 0; i < n; i++) {
-    for (int k = 0; k < nnIndxLU[n + i]; k++) {
-      for (int ell = 0; ell <= k; ell++) {
+  for (int i = 0; i < n; i++) {                  // for all elements
+    for (int k = 0; k < nnIndxLU[n + i]; k++) {  // for all neighbors of i
+      for (int ell = 0; ell <= k; ell++) {       // lower triangular elements
         int i1 = nnIndx[nnIndxLU[i] + k];
         int i2 = nnIndx[nnIndxLU[i] + ell];
         D[CIndx[i] + ell * nnIndxLU[n + i] + k] =

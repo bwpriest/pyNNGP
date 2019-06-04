@@ -21,6 +21,8 @@ class CovModel {
         _sigmaSqIGa(sigmaSqIGa),
         _sigmaSqIGb(sigmaSqIGb) {}
 
+  // we assume that the covariance depends is isotropic, and the euclidean
+  // distance is already calculated.
   virtual double cov(double) const = 0;
 
   void setSigmaSq(double sigmaSq) { _sigmaSq = sigmaSq; }

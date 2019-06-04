@@ -35,7 +35,9 @@ class SeqNNGP {
   std::vector<int> uIndxLU;  // [2*n]
   // Which neighbor is it?
   std::vector<int> uiIndx;  // [nIndx]
-  std::vector<int> CIndx;   // [2*n]
+  // Lower part holds cumulative sum of squared neighbors of 1:(i-1)
+  // Uppoer part holds # of neighbors squared
+  std::vector<int> CIndx;  // [2*n]
 
   const int d;      // Number of input dimensions
   const int p;      // Number of indicators per input locatios
