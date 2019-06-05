@@ -17,16 +17,16 @@ using Eigen::VectorXd;
 using Eigen::VectorXi;
 
 namespace pyNNGP {
-SeqNNGP::SeqNNGP(const double* _y, const double* _X, const double* _coords,
-                 int _d, int _p, int _n, int _m, CovModel& _cm, DistFunc& _df,
+SeqNNGP::SeqNNGP(const double* _y, const double* _coords, const int _d,
+                 const int _n, const int _m, CovModel& _cm, DistFunc& _df,
                  NoiseModel& _nm)
     : d(_d),
-      p(_p),
+      // p(_p),
       n(_n),
       m(_m),
       nIndx(m * (m + 1) / 2 + (n - m - 1) * m),
       y(_y, n),
-      Xt(_X, p, n),
+      // Xt(_X, p, n),
       coords(_coords, d,
              n),  // Note n x d in python is d x n in Eigen (by default).
       cm(_cm),
@@ -71,17 +71,11 @@ SeqNNGP::SeqNNGP(const double* _y, const double* _X, const double* _coords,
   end = std::chrono::high_resolution_clock::now();
   diff = end - start;
   std::cout << "duration = " << diff.count() << "s" << '\n';
-
-  nm.setX(Xt);
-
-  beta =
-      Xt.transpose().bdcSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(y);
 }
 
 void SeqNNGP::sample(int nSamples) {
   for (int s = 0; s < nSamples; s++) {
     updateW();
-    updateBeta();
     nm.update(*this);
     cm.update(*this);
   }
@@ -198,47 +192,42 @@ void SeqNNGP::updateBF(double* B, double* F, CovModel& cm) {
   }
 }
 
+void SeqNNGP::updateWparts(const int i, double& a, double& v, double& e) {
+  if (uIndxLU[n + i] > 0) {  // is i a neighbor for anybody
+    for (int j = 0; j < uIndxLU[n + i]; j++) {
+      // for each location neighboring i
+      double b = 0.0;
+      int jj = uIndx[uIndxLU[i] + j];               // index of i's jth neighbor
+      for (int k = 0; k < nnIndxLU[n + jj]; k++) {  // for each neighboring jj
+        int kk = nnIndx[nnIndxLU[jj] + k];  // index of jj's kth neighbor
+        if (kk != i) {                      // if the neighbor of jj is not i
+          // covariance between jj and kk and the random effect of kk
+          b += B[nnIndxLU[jj] + k] * w[kk];
+        }
+      }
+      a += B[nnIndxLU[jj] + uiIndx[uIndxLU[i] + j]] * (w[jj] - b) / F[jj];
+      v += pow(B[nnIndxLU[jj] + uiIndx[uIndxLU[i] + j]], 2) / F[jj];
+    }
+  }
+
+  for (int j = 0; j < nnIndxLU[n + i]; j++) {
+    e += B[nnIndxLU[i] + j] * w[nnIndx[nnIndxLU[i] + j]];
+  }
+}
+
 void SeqNNGP::updateW() {
   for (int i = 0; i < n; i++) {
     double a = 0.0;
     double v = 0.0;
-    if (uIndxLU[n + i] > 0) {  // is i a neighbor for anybody
-      for (int j = 0; j < uIndxLU[n + i]; j++) {
-        // for each location neighboring i
-        double b = 0.0;
-        int jj = uIndx[uIndxLU[i] + j];  // index of i's jth neighbor
-        for (int k = 0; k < nnIndxLU[n + jj]; k++) {  // for each neighboring jj
-          int kk = nnIndx[nnIndxLU[jj] + k];   // index of jj's kth neighbor
-          if (kk != i) {                       // if the neighbor of jj is not i
-            b += B[nnIndxLU[jj] + k] * w[kk];  // covariance between jj and kk
-                                               // and the random effect of kk
-          }
-        }
-        a += B[nnIndxLU[jj] + uiIndx[uIndxLU[i] + j]] * (w[jj] - b) / F[jj];
-        v += pow(B[nnIndxLU[jj] + uiIndx[uIndxLU[i] + j]], 2) / F[jj];
-      }
-    }
-
     double e = 0.0;
-    for (int j = 0; j < nnIndxLU[n + i]; j++) {
-      e += B[nnIndxLU[i] + j] * w[nnIndx[nnIndxLU[i] + j]];
-    }
-    double mu = (y[i] - Xt.col(i).dot(beta)) * nm.invTauSq(i) + e / F[i] + a;
+    updateWparts(i, a, v, e);
+
+    double mu = y[i] * nm.invTauSq(i) + e / F[i] + a;
     double var = 1.0 / (nm.invTauSq(i) + 1.0 / F[i] + v);
 
     std::normal_distribution<> norm{mu * var, std::sqrt(var)};
     w[i] = norm(gen);
   }
-}
-
-void SeqNNGP::updateBeta() {
-  VectorXd tmp_p{nm.getXtW() * (y - w)};
-  MatrixXd tmp_pp{nm.getXtWX()};
-
-  // May be more efficient ways to do this...
-  VectorXd mean = tmp_pp.llt().solve(tmp_p);
-  MatrixXd cov = tmp_pp.inverse();
-  beta = MVNorm(mean, cov)(gen);
 }
 
 // void SeqNNGP::updateTauSq() {

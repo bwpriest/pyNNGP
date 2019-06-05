@@ -8,15 +8,17 @@
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
+/**
+ * Nearest-Neighbor Gaussian Process. Based upon [DBFG16].
+ */
 namespace pyNNGP {
 class CovModel;
 class NoiseModel;
 class DistFunc;
 class SeqNNGP {
  public:
-  SeqNNGP(const double* _y, const double* _X, const double* _coords, int _d,
-          int _p, int _n, int _m, CovModel& _cm, DistFunc& _df,
-          NoiseModel& _nm);
+  SeqNNGP(const double* _y, const double* _coords, const int _d, const int _n,
+          const int _m, CovModel& _cm, DistFunc& _df, NoiseModel& _nm);
 
   // Allocate our own memory for these
   // Nearest neighbors index.  Holds the indices of the neighbors of each node.
@@ -42,14 +44,12 @@ class SeqNNGP {
   std::vector<int> CIndx;  // [2*n]
 
   const int d;      // Number of input dimensions
-  const int p;      // Number of indicators per input locatios
   const int n;      // Number of input locations
   const int m;      // Number of nearest neighbors
   const int nIndx;  // Total number of neighbors (DAG edges)
 
   // Use existing memory here (allocated in python-layer)
   const Eigen::Map<const VectorXd> y;       // [n]
-  const Eigen::Map<const MatrixXd> Xt;      // [p, n]  ([n, p] in python)
   const Eigen::Map<const MatrixXd> coords;  // [d, n]  ([n, d] in python)
 
   CovModel& cm;    // Model for GP covariances
@@ -76,20 +76,24 @@ class SeqNNGP {
   VectorXd w;             // [n] Latent GP samples
   VectorXd beta;          // [p] Unknown linear model coefficients
 
-  void sample(int nSamples);  // One Gibbs iteration
+  // return the additive model against which the GP is modeling discrepency.
+  // This is the zero vector for the raw NNGP.
+  virtual VectorXd additiveModel() const { return VectorXd::Zero(n); }
+
+  virtual void sample(int nSamples);  // One Gibbs iteration
 
   // Use a particular covariance model to update given B and F vectors.
   void updateBF(double*, double*, CovModel&);
-  void updateW();
-  void updateBeta();
+  virtual void updateW();
 
   void predict(const double* X0, const double* coords, const int* nnIndx0,
                int q, double* w0, double* y0);
 
- private:
+ protected:
   void mkUIndx();
   void mkUIIndx();
   void mkCD();
+  void updateWparts(const int i, double& a, double& v, double& e);
 };
 
 }  // namespace pyNNGP

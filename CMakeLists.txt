@@ -14,12 +14,14 @@ add_subdirectory(pybind11)
 set(PYSRC_FILES
   pysrc/pyNNGP.cpp
   pysrc/SeqNNGP.cpp
+  pysrc/LinearNNGP.cpp
   pysrc/CovModel.cpp
   pysrc/NoiseModel.cpp
   pysrc/DistFunc.cpp
 )
 set(SRC_FILES
   src/SeqNNGP.cpp
+  src/LinearNNGP.cpp
   src/tree.cpp
   src/utils.cpp
 )
