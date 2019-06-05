@@ -21,14 +21,11 @@ SeqNNGP::SeqNNGP(const double* _y, const double* _coords, const int _d,
                  const int _n, const int _m, CovModel& _cm, DistFunc& _df,
                  NoiseModel& _nm)
     : d(_d),
-      // p(_p),
       n(_n),
       m(_m),
       nIndx(m * (m + 1) / 2 + (n - m - 1) * m),
       y(_y, n),
-      // Xt(_X, p, n),
-      coords(_coords, d,
-             n),  // Note n x d in python is d x n in Eigen (by default).
+      coords(_coords, d, n),  // n x d in python is d x n in Eigen
       cm(_cm),
       df(_df),
       nm(_nm),
