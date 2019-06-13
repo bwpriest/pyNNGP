@@ -12,8 +12,8 @@ namespace pyNNGP {
 static LinearNNGP* MakeLinearNNGP(size_t iy, size_t iX, size_t icoords, int d,
                                   int p, int n, int nNeighbors, CovModel& cm,
                                   DistFunc& df, NoiseModel& nm) {
-  const double* y = reinterpret_cast<double*>(iy);
-  const double* X = reinterpret_cast<double*>(iX);
+  const double* y      = reinterpret_cast<double*>(iy);
+  const double* X      = reinterpret_cast<double*>(iX);
   const double* coords = reinterpret_cast<double*>(icoords);
 
   return new LinearNNGP(y, X, coords, d, p, n, nNeighbors, cm, df, nm);

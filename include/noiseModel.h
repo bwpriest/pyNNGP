@@ -7,17 +7,17 @@ namespace pyNNGP {
 class NoiseModel {
  public:
   NoiseModel() : _isXSet(false), _XtW(nullptr, 0, 0) {}
-  virtual void update(SeqNNGP&) = 0;
-  virtual double invTauSq(int i) const = 0;
-  virtual void setX(const Eigen::Ref<const MatrixXd>& Xt) = 0;
-  virtual MatrixXd getXtW(void) const = 0;
-  virtual MatrixXd getXtWX(void) const = 0;
+  virtual void     update(SeqNNGP&)                           = 0;
+  virtual double   invTauSq(int i) const                      = 0;
+  virtual void     setX(const Eigen::Ref<const MatrixXd>& Xt) = 0;
+  virtual MatrixXd getXtW(void) const                         = 0;
+  virtual MatrixXd getXtWX(void) const                        = 0;
   virtual ~NoiseModel() {}
 
  protected:
-  bool _isXSet;
+  bool                       _isXSet;
   Eigen::Map<const MatrixXd> _XtW;
-  MatrixXd _XtWX;
+  MatrixXd                   _XtWX;
 };
 
 class IGNoiseModel : public NoiseModel {
@@ -30,18 +30,18 @@ class IGNoiseModel : public NoiseModel {
         _IGb(IGb) {}
 
   virtual void update(SeqNNGP& seq) override {
-    VectorXd tmp_n = seq.y - seq.w - seq.additiveModel();
+    VectorXd                  tmp_n = seq.y - seq.w - seq.additiveModel();
     std::gamma_distribution<> gamma{_IGa + seq.n / 2.,
                                     _IGb + 0.5 * tmp_n.squaredNorm()};
     _invTauSq = gamma(seq.gen);
-    _tauSq = 1. / _invTauSq;
+    _tauSq    = 1. / _invTauSq;
   }
 
   virtual double invTauSq(int i) const override { return _invTauSq; }
 
   virtual void setX(const Eigen::Ref<const MatrixXd>& Xt) override {
     new (&_XtW) Eigen::Map<const MatrixXd>{Xt.data(), Xt.rows(), Xt.cols()};
-    _XtWX = Xt * Xt.transpose();
+    _XtWX   = Xt * Xt.transpose();
     _isXSet = true;
   }
 
@@ -75,7 +75,7 @@ class ConstHomogeneousNoiseModel : public NoiseModel {
   virtual void setX(const Eigen::Ref<const MatrixXd>& Xt) override {
     MatrixXd XtW{Xt * _invTauSq};
     new (&_XtW) Eigen::Map<const MatrixXd>{XtW.data(), XtW.rows(), XtW.cols()};
-    _XtWX = Xt * Xt.transpose() * _invTauSq;
+    _XtWX   = Xt * Xt.transpose() * _invTauSq;
     _isXSet = true;
   }
 
@@ -106,7 +106,7 @@ class ConstHeterogeneousNoiseModel : public NoiseModel {
   virtual void setX(const Eigen::Ref<const MatrixXd>& Xt) override {
     MatrixXd XtW{Xt * _tauSq.asDiagonal().inverse()};
     new (&_XtW) Eigen::Map<const MatrixXd>{XtW.data(), XtW.rows(), XtW.cols()};
-    _XtWX = Xt * _tauSq.asDiagonal().inverse() * Xt.transpose();
+    _XtWX   = Xt * _tauSq.asDiagonal().inverse() * Xt.transpose();
     _isXSet = true;
   }
 

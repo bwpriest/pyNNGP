@@ -9,8 +9,8 @@ using Eigen::MatrixXd;
 namespace pyNNGP {
 struct Node {
   Node(int i);
-  int index;  // which point I am
-  Node *left = nullptr;
+  int   index;  // which point I am
+  Node *left  = nullptr;
   Node *right = nullptr;
 };
 

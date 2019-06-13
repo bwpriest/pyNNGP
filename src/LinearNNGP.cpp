@@ -41,7 +41,7 @@ void LinearNNGP::updateW() {
 
     updateWparts(i, a, v, e);
 
-    double mu = (y[i] - Xt.col(i).dot(beta)) * nm.invTauSq(i) + e / F[i] + a;
+    double mu  = (y[i] - Xt.col(i).dot(beta)) * nm.invTauSq(i) + e / F[i] + a;
     double var = 1.0 / (nm.invTauSq(i) + 1.0 / F[i] + v);
 
     std::normal_distribution<> norm{mu * var, std::sqrt(var)};
@@ -64,8 +64,8 @@ void LinearNNGP::updateBeta() {
 
   // May be more efficient ways to do this...
   VectorXd mean = tmp_pp.llt().solve(tmp_p);
-  MatrixXd cov = tmp_pp.inverse();
-  beta = MVNorm(mean, cov)(gen);
+  MatrixXd cov  = tmp_pp.inverse();
+  beta          = MVNorm(mean, cov)(gen);
 }
 
 }  // namespace pyNNGP

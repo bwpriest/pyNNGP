@@ -16,15 +16,15 @@ void getNNIndx(int i, int m, int& iNNIndx, int& iNN) {
   // iNN is # of neighbors of i
   if (i == 0) {
     iNNIndx = 0;  // this should never be accessed
-    iNN = 0;
+    iNN     = 0;
     return;
   } else if (i < m) {
     iNNIndx = (i * (i - 1)) / 2;
-    iNN = i;
+    iNN     = i;
     return;
   } else {
     iNNIndx = (m * (m - 1)) / 2 + (i - m) * m;
-    iNN = m;
+    iNN     = m;
     return;
   }
 }
@@ -75,21 +75,21 @@ void get_nn(Node* Tree, const int index, const int dim, const int d,
 void mkNNIndxTree0(const int n, const int m, const int d, const DistFunc& df,
                    const MatrixXd& coords, int* nnIndx, double* nnDist,
                    int* nnIndxLU) {
-  int i, iNNIndx, iNN;
+  int    i, iNNIndx, iNN;
   double distance;
-  int nIndx = ((1 + m) * m) / 2 + (n - m - 1) * m;
+  int    nIndx = ((1 + m) * m) / 2 + (n - m - 1) * m;
   // Results seem to depend on BUCKETSIZE, which seems weird...
   int BUCKETSIZE = 10;
 
   std::fill(&nnDist[0], &nnDist[0] + nIndx,
             std::numeric_limits<double>::infinity());
 
-  Node* Tree = nullptr;
-  int time_through = -1;
+  Node* Tree         = nullptr;
+  int   time_through = -1;
 
   for (i = 0; i < n; i++) {
     getNNIndx(i, m, iNNIndx, iNN);
-    nnIndxLU[i] = iNNIndx;
+    nnIndxLU[i]     = iNNIndx;
     nnIndxLU[n + i] = iNN;
     if (time_through == -1) { time_through = i; }
 
@@ -128,7 +128,7 @@ void mkNNIndxTree0(const int n, const int m, const int d, const DistFunc& df,
         }
       }
     } else {  // i==0
-      Tree = miniInsert(Tree, coords, i, 0, d);
+      Tree         = miniInsert(Tree, coords, i, 0, d);
       time_through = -1;
     }
   }

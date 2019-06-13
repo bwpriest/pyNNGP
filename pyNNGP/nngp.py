@@ -83,13 +83,15 @@ class NNGP(object):
         Nsi = self.Ns[i]
         return self.cov(Nsi, Nsi)
 
-    def _Ccross(i):
+    def _Ccross(self, i):
         """ C_{s_i, N(s_i)}
         """
+        pass
 
     def _Fsi(self, i):
         """ F_{s_i}
         """
+        pass
 
     def _Cs(self, i):
         """ C_{si, si}

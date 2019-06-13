@@ -25,17 +25,17 @@ class CovModel {
   // distance is already calculated.
   virtual double cov(double) const = 0;
 
-  void setSigmaSq(double sigmaSq) { _sigmaSq = sigmaSq; }
+  void   setSigmaSq(double sigmaSq) { _sigmaSq = sigmaSq; }
   double getSigmaSq() { return _sigmaSq; }
 
   virtual void setPhi(double phi) { _phi = phi; }
-  double getPhi() { return _phi; }
+  double       getPhi() { return _phi; }
 
   virtual void updateSigmaSq(SeqNNGP& seq) {
     double a = 0.0;
     double e = 0.0;
     double b = 0.0;
-    int j = 0;
+    int    j = 0;
 #ifdef _OPENMP
 #pragma omp parallel for private(e, j, b) reduction(+ : a)
 #endif
@@ -60,11 +60,11 @@ class CovModel {
   virtual void updatePhi(SeqNNGP& seq) {
     double phiCurrent = getPhi();
     seq.updateBF(&seq.B[0], &seq.F[0], *this);
-    double a = 0.0;
-    double b = 0.0;
-    double e = 0.0;
+    double a      = 0.0;
+    double b      = 0.0;
+    double e      = 0.0;
     double logDet = 0.0;
-    int j = 0;
+    int    j      = 0;
 
 // Get the current log determinant
 #ifdef _OPENMP
@@ -96,7 +96,7 @@ class CovModel {
 
     seq.updateBF(&seq.Bcand[0], &seq.Fcand[0], *this);
 
-    a = 0.0;
+    a      = 0.0;
     logDet = 0.0;
 
 #ifdef _OPENMP
@@ -138,8 +138,8 @@ class CovModel {
   virtual ~CovModel() {}
 
  protected:
-  double _sigmaSq;
-  double _phi;
+  double       _sigmaSq;
+  double       _phi;
   const double _phiUnifa, _phiUnifb;      // Uniform prior on phi
   const double _phiTuning;                // Width of phi proposal distribution
   const double _sigmaSqIGa, _sigmaSqIGb;  // Inverse gamma prior on sigmaSq
@@ -167,7 +167,7 @@ class SphericalCovModel : public CovModel {
   }
 
   void setPhi(double phi) override {
-    _phi = phi;
+    _phi    = phi;
     _phiInv = 1. / phi;
   }
 

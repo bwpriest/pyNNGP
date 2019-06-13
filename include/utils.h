@@ -32,6 +32,7 @@ class MVNorm {
   template <class Generator = std::mt19937>
   VectorXd operator()(Generator& g) {
     std::normal_distribution<> norm{0.0, 1.0};
+
     VectorXd result(_mu.size());
     for (int i = 0; i < _mu.size(); i++) result[i] = norm(g);
     return _transform * result + _mu;

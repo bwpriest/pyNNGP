@@ -41,13 +41,14 @@ SeqNNGP::SeqNNGP(const double* _y, const double* _coords, const int _d,
   auto start = std::chrono::high_resolution_clock::now();
   mkNNIndxTree0(n, m, d, df, coords, &nnIndx[0], &nnDist[0], &nnIndxLU[0]);
   auto end = std::chrono::high_resolution_clock::now();
+
   std::chrono::duration<double> diff = end - start;
   std::cout << "duration = " << diff.count() << "s" << '\n';
 
   std::cout << "Building neighbors of neighbors index" << '\n';
   start = std::chrono::high_resolution_clock::now();
   mkUIndx();
-  end = std::chrono::high_resolution_clock::now();
+  end  = std::chrono::high_resolution_clock::now();
   diff = end - start;
   std::cout << "duration = " << diff.count() << "s" << '\n';
 
@@ -58,14 +59,14 @@ SeqNNGP::SeqNNGP(const double* _y, const double* _coords, const int _d,
   std::cout << "Making CD" << '\n';
   start = std::chrono::high_resolution_clock::now();
   mkCD();
-  end = std::chrono::high_resolution_clock::now();
+  end  = std::chrono::high_resolution_clock::now();
   diff = end - start;
   std::cout << "duration = " << diff.count() << "s" << '\n';
 
   std::cout << "updating BF" << '\n';
   start = std::chrono::high_resolution_clock::now();
   updateBF(&B[0], &F[0], cm);
-  end = std::chrono::high_resolution_clock::now();
+  end  = std::chrono::high_resolution_clock::now();
   diff = end - start;
   std::cout << "duration = " << diff.count() << "s" << '\n';
 }
@@ -92,10 +93,10 @@ void SeqNNGP::mkUIndx() {
       int nnStart, nnEnd;
       if (j < m) {
         nnStart = j * (j - 1) / 2;
-        nnEnd = (j + 1) * j / 2;
+        nnEnd   = (j + 1) * j / 2;
       } else {
         nnStart = m * (m - 1) / 2 + m * (j - m);
-        nnEnd = nnStart + m;
+        nnEnd   = nnStart + m;
       }
       // Actually do the search for i
       auto result = std::find(&nnIndx[nnStart], &nnIndx[nnEnd], i);
@@ -119,7 +120,7 @@ void SeqNNGP::mkCD() {
     j += nnIndxLU[n + i] * nnIndxLU[n + i];
     if (i == 0) {
       CIndx[n + i] = 0;
-      CIndx[i] = 0;
+      CIndx[i]     = 0;
     } else {
       CIndx[n + i] =
           nnIndxLU[n + i] * nnIndxLU[n + i];       // # of neighbors squared
@@ -153,7 +154,7 @@ void SeqNNGP::mkCD() {
 // Modified to ignore Matern covariance until I can figure out a way to get
 // a cyl_bessel_k compiled.
 void SeqNNGP::updateBF(double* B, double* F, CovModel& cm) {
-  int k, ell;
+  int                  k, ell;
   Eigen::Map<VectorXd> eigenB(&B[0], nIndx);
   Eigen::Map<VectorXd> eigenF(&F[0], n);
 
@@ -180,8 +181,8 @@ void SeqNNGP::updateBF(double* B, double* F, CovModel& cm) {
       const Eigen::Map<const VectorXd> eigenc(&c[nnIndxLU[i]], nnIndxLU[i + n]);
       // Might be good to figure out how to use solveInPlace here.
       auto Blocal = eigenB.segment(nnIndxLU[i], nnIndxLU[n + i]);
-      Blocal = eigenC.llt().solve(eigenc);
-      eigenF[i] = cm.cov(0.0) - Blocal.dot(eigenc);
+      Blocal      = eigenC.llt().solve(eigenc);
+      eigenF[i]   = cm.cov(0.0) - Blocal.dot(eigenc);
     } else {
       B[i] = 0;
       F[i] = cm.cov(0.0);
@@ -193,8 +194,8 @@ void SeqNNGP::updateWparts(const int i, double& a, double& v, double& e) {
   if (uIndxLU[n + i] > 0) {  // is i a neighbor for anybody
     for (int j = 0; j < uIndxLU[n + i]; j++) {
       // for each location neighboring i
-      double b = 0.0;
-      int jj = uIndx[uIndxLU[i] + j];               // index of i's jth neighbor
+      double b  = 0.0;
+      int    jj = uIndx[uIndxLU[i] + j];            // index of i's jth neighbor
       for (int k = 0; k < nnIndxLU[n + jj]; k++) {  // for each neighboring jj
         int kk = nnIndx[nnIndxLU[jj] + k];  // index of jj's kth neighbor
         if (kk != i) {                      // if the neighbor of jj is not i
@@ -219,7 +220,7 @@ void SeqNNGP::updateW() {
     double e = 0.0;
     updateWparts(i, a, v, e);
 
-    double mu = y[i] * nm.invTauSq(i) + e / F[i] + a;
+    double mu  = y[i] * nm.invTauSq(i) + e / F[i] + a;
     double var = 1.0 / (nm.invTauSq(i) + 1.0 / F[i] + v);
 
     std::normal_distribution<> norm{mu * var, std::sqrt(var)};

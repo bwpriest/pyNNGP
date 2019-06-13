@@ -28,7 +28,7 @@ void apply_permutation(std::vector<int>& p, Args&... args) {
       int next = p[current];
       swap_at(current, next, args...);
       p[current] = current;
-      current = next;
+      current    = next;
     }
     p[current] = current;
   }
@@ -43,7 +43,7 @@ void apply_permutation(std::vector<int>& p, Args*... args) {
       int next = p[current];
       swap_at(current, next, args...);
       p[current] = current;
-      current = next;
+      current    = next;
     }
     p[current] = current;
   }

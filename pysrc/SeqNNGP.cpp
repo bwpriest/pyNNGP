@@ -11,7 +11,7 @@ namespace pyNNGP {
 static SeqNNGP* MakeSeqNNGP(size_t iy, size_t icoords, int d, int n,
                             int nNeighbors, CovModel& cm, DistFunc& df,
                             NoiseModel& nm) {
-  const double* y = reinterpret_cast<double*>(iy);
+  const double* y      = reinterpret_cast<double*>(iy);
   const double* coords = reinterpret_cast<double*>(icoords);
 
   return new SeqNNGP(y, coords, d, n, nNeighbors, cm, df, nm);

@@ -32,8 +32,8 @@ class LinearNNGP : public SeqNNGP {
   VectorXd beta;  // [p]
 
   VectorXd additiveModel() const override;
-  void sample(int nSamples) override;
-  void updateW() override;
+  void     sample(int nSamples) override;
+  void     updateW() override;
 
   void updateBeta();
 

@@ -46,7 +46,7 @@ class SeqNNGP:
         self.distFunc = distFunc
         self.noiseModel = noiseModel
 
-        if noramlize == True:
+        if normalize == True:
             self.coords = self.coords / self.coords.sum(axis=0)
 
         assert self.coords.shape[0] == self.y.shape[0]
