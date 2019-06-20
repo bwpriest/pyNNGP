@@ -10,9 +10,66 @@ namespace pyNNGP {
 
 class CovModel {
  public:
-  CovModel(double sigmaSq, double phi, const double phiUnifa,
-           const double phiUnifb, const double phiTuning,
-           const double sigmaSqIGa, const double sigmaSqIGb)
+  CovModel() {}
+  virtual double cov(double) const = 0;
+
+  virtual void update(SeqNNGP& seq);
+};
+
+// *****************************************************************************
+// NNGP Kernels
+// *****************************************************************************
+
+/**
+ * The neural network gaussian process covariance function from "Deep Neural
+ * Networks as Gaussian Processes" https://arxiv.org/abs/1711.00165.
+ *
+ * We currently assume that variance parameters are fixed, and
+ * that the network uses reLU activations.
+ */
+
+// class NeuralNetworkCovModel : public CovModel {
+//  public:
+//   NeuralNetworkCovModel(const int din, const int L, const double sigmaSqW,
+//                         const double sigmaSqB)
+//       : _din(din),
+//         _L(L),
+//         _sigmaSqW(sigmaSqW),
+//         _sigmaSqB(sigmaSqB) {}
+
+//   /**
+//    * We assume that the hyperparameters are fixed for now.
+//    */
+//   void update(SeqNNGP& seq) override{};
+
+//   /**
+//    * Calls the NNGP covariance function.
+//    *
+//    * NEEDS REFACTOR: must get both x and x^\prime.
+//    */
+//   double cov(double x) const override {
+//     double K_0 = _sigmaSqB + _sigmaSqW * (x / _din);
+//   }
+
+//  protected:
+//   double next_K(double K_last) {}
+
+//   const int _din;
+//   const int _L;
+//   // Not const because we might want to implement sampling later
+//   double _sigmaSqW;
+//   double _sigmaSqB;
+// };
+
+// *****************************************************************************
+// Isometric Kernels
+// *****************************************************************************
+
+class IsometricCovModel : public CovModel {
+ public:
+  IsometricCovModel(double sigmaSq, double phi, const double phiUnifa,
+                    const double phiUnifb, const double phiTuning,
+                    const double sigmaSqIGa, const double sigmaSqIGb)
       : _sigmaSq(sigmaSq),
         _phi(phi),
         _phiUnifa(phiUnifa),
@@ -20,10 +77,6 @@ class CovModel {
         _phiTuning(phiTuning),
         _sigmaSqIGa(sigmaSqIGa),
         _sigmaSqIGb(sigmaSqIGb) {}
-
-  // we assume that the covariance depends is isotropic, and the euclidean
-  // distance is already calculated.
-  virtual double cov(double) const = 0;
 
   void   setSigmaSq(double sigmaSq) { _sigmaSq = sigmaSq; }
   double getSigmaSq() { return _sigmaSq; }
@@ -135,7 +188,7 @@ class CovModel {
     updatePhi(seq);
   }
 
-  virtual ~CovModel() {}
+  virtual ~IsometricCovModel() {}
 
  protected:
   double       _sigmaSq;
@@ -145,16 +198,16 @@ class CovModel {
   const double _sigmaSqIGa, _sigmaSqIGb;  // Inverse gamma prior on sigmaSq
 };
 
-class ExponentialCovModel : public CovModel {
+class ExponentialCovModel : public IsometricCovModel {
  public:
-  using CovModel::CovModel;
+  using IsometricCovModel::IsometricCovModel;
 
   double cov(double x) const override { return _sigmaSq * std::exp(-x * _phi); }
 };
 
-class SphericalCovModel : public CovModel {
+class SphericalCovModel : public IsometricCovModel {
  public:
-  using CovModel::CovModel;
+  using IsometricCovModel::IsometricCovModel;
 
   double cov(double x) const override {
     if (x > 0.0 && x < _phiInv) {
@@ -175,9 +228,9 @@ class SphericalCovModel : public CovModel {
   double _phiInv;
 };
 
-class SqExpCovModel : public CovModel {
+class SqExpCovModel : public IsometricCovModel {
  public:
-  using CovModel::CovModel;
+  using IsometricCovModel::IsometricCovModel;
 
   double cov(double x) const override {
     return _sigmaSq * std::exp(-1.0 * std::pow(_phi * x, 2));

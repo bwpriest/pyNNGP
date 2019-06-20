@@ -272,6 +272,35 @@ void SeqNNGP::updateW() {
 //         std::sqrt(tauSq)}(gen);
 //     }
 // }
+
+/**
+ * Params:
+ *
+ * _coords0 : input query data points
+ */
+// void SeqNNGP::predict(const double* _coords0, const int* _nnIndx0, int q,
+//                       double* w0, double* y0) {
+//   // I think that 2 in the original should be d.
+//   const Eigen::Map<const MatrixXd> coords0(_coords0, d, q);
+//   const Eigen::Map<const VectorXi> nnIndx0(_nnIndx0, m * q);
+
+//   MatrixXd C0(m, m);
+//   VectorXd c0(m);
+//   for (int i = 0; i < q; i++) {
+//     for (int k = 0; k < m; k++) {
+//       double dist = df(coords.col(nnIndx0[i + q * k]), coords0.col(i));
+//       c0[k]       = cm.cov(dist);
+//       for (int ell = 0; ell < m; ell++) {
+//         dist = df(coords.col(nnIndx0[i + q * k]), coords.col(i + q * ell));
+//         C0(ell, k) = cm.cov(d);
+//       }
+//     }
+//     auto   tmp  = C0.llt().solve(c0);
+//     double dist = 0.0;
+//     for (int k = 0; k < m; k++) { dist += tmp[k] * w[nnIndx0[i + q * k]]; }
+//   }
+// }
+
 }  // namespace pyNNGP
 
 // Predict

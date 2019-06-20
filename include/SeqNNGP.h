@@ -20,8 +20,19 @@ class SeqNNGP {
   SeqNNGP(const double* _y, const double* _coords, const int _d, const int _n,
           const int _m, CovModel& _cm, DistFunc& _df, NoiseModel& _nm);
 
-  /** Allocate our own memory for these
-   * Nearest neighbors index.  Holds the indices of the neighbors of each node.
+  inline int nn_count(const int i) const {
+    assert(i < n);
+    return nnIndxLU[n + i];
+  }
+
+  inline int nn_index(const int i) const {
+    assert(i < n);
+    return nnIndxLU[i];
+  }
+
+  /** Nearest neighbors index
+   * Holds the indices of the neighbors of each node. Allocate our own memory
+   * for these
    *
    * size : [nIndx]
    */
@@ -30,6 +41,7 @@ class SeqNNGP {
   /** Nearest neighbors ranges
    * Lower part holds starting index for each node
    * Upper part holds number of elements for each node
+   *
    * size : [2*n]
    */
   std::vector<int> nnIndxLU;
@@ -107,8 +119,11 @@ class SeqNNGP {
   void         updateBF(double*, double*, CovModel&);
   virtual void updateW();
 
-  void predict(const double* X0, const double* coords, const int* nnIndx0,
-               int q, double* w0, double* y0);
+  /** Produce a MAP estimate of the input coordinates.
+   *
+   */
+  void predict(const double* coords, const int* nnIndx0, int q, double* w0,
+               double* y0);
 
  protected:
   void mkUIndx();
