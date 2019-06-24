@@ -13,7 +13,7 @@ class CovModel {
   CovModel() {}
   virtual double cov(double) const = 0;
 
-  virtual void update(SeqNNGP& seq);
+  virtual void update(SeqNNGP& seq) = 0;
 };
 
 // *****************************************************************************
