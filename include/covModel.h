@@ -1,10 +1,14 @@
 #ifndef NNGP_covModel_h
 #define NNGP_covModel_h
 
+#include <Eigen/Dense>
 #include <cmath>
 #include <random>
 #include "SeqNNGP.h"
 #include "utils.h"
+
+using Eigen::MatrixXd;
+using Eigen::VectorXd;
 
 namespace pyNNGP {
 
@@ -14,6 +18,11 @@ class CovModel {
   virtual double cov(double) const = 0;
 
   virtual void update(SeqNNGP& seq) = 0;
+
+  virtual void precondition(MatrixXd& coords) = 0;
+
+  virtual ~CovModel() {}
+
 };
 
 // *****************************************************************************
@@ -183,12 +192,12 @@ class IsometricCovModel : public CovModel {
     }
   }
 
-  virtual void update(SeqNNGP& seq) {
+  void update(SeqNNGP& seq) override {
     updateSigmaSq(seq);
     updatePhi(seq);
   }
 
-  virtual ~IsometricCovModel() {}
+  void precondition(MatrixXd& coords) override {}
 
  protected:
   double       _sigmaSq;
