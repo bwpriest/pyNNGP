@@ -30,14 +30,6 @@ class SeqNNGP {
     return nnIndxLU[i];
   }
 
-  /** Nearest neighbors index
-   * Holds the indices of the neighbors of each node. Allocate our own memory
-   * for these
-   *
-   * size : [nIndx]
-   */
-  std::vector<int> nnIndx;
-
   /** Nearest neighbors ranges
    * Lower part holds starting index for each node
    * Upper part holds number of elements for each node
@@ -45,6 +37,14 @@ class SeqNNGP {
    * size : [2*n]
    */
   std::vector<int> nnIndxLU;
+
+  /** Nearest neighbors index
+   * Holds the indices of the neighbors of each node. Allocate our own memory
+   * for these
+   *
+   * size : [nIndx]
+   */
+  std::vector<int> nnIndx;
 
   /** Distances between neighbors
    *
@@ -101,13 +101,12 @@ class SeqNNGP {
   // stacked q x mq cross-covariance matrices C_{s_i, N(s_i)} between w(s_i) and
   // w_{N(s_i)}.
   // We appear to be assuming q = 1 for now.
-  std::vector<double> c;  // [nIndx]
+  std::vector<double> c_crosscov;  // [nIndx]
   // stacked ~ (m x m) covariance matrices C_{N(s_i)}.
-  std::vector<double> C;  // [~n*m*m]
+  std::vector<double> C_cov;  // [~n*m*m]
   // stacked ~ (m x m) cross pairwise distances for N(s_i).
-  std::vector<double> D;     // [~n*m*m]
-  VectorXd            w;     // [n] Latent GP samples
-  VectorXd            beta;  // [p] Unknown linear model coefficients
+  std::vector<double> D_dist;  // [~n*m*m]
+  VectorXd            w;       // [n] Latent GP samples
 
   // return the additive model against which the GP is modeling discrepency.
   // This is the zero vector for the raw NNGP.

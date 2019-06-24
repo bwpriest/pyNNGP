@@ -128,9 +128,9 @@ void SeqNNGP::mkCD() {
     }
   }
   // j is now the sum of squares of neighbor counts
-  C.resize(j);
-  c.resize(nIndx);
-  D.resize(j);
+  C_cov.resize(j);
+  c_crosscov.resize(nIndx);
+  D_dist.resize(j);
   for (int i = 0; i < n; i++) {                  // for all elements
     for (int k = 0; k < nnIndxLU[n + i]; k++) {  // for all neighbors of i
       for (int ell = 0; ell <= k; ell++) {       // lower triangular elements
@@ -144,7 +144,7 @@ void SeqNNGP::mkCD() {
         //
         // It might be best to hide this dependence by placing the DistFunc
         // inside the CovModel later.
-        D[CIndx[i] + ell * nnIndxLU[n + i] + k] =
+        D_dist[CIndx[i] + ell * nnIndxLU[n + i] + k] =
             df(coords.col(i1), coords.col(i2));
       }
     }
@@ -163,26 +163,27 @@ void SeqNNGP::updateBF(double* B, double* F, CovModel& cm) {
 #endif
   for (int i = 0; i < n; i++) {
     if (i > 0) {
-      // Construct C and c matrices that we'll Chosolve below
+      // Construct C_cov and c_crosscov matrices that we'll Chosolve below
       // I think these are essentially the constituents of eq (3) of Datta++14
       // I.e., we're updating auto- and cross-covariances
       for (k = 0; k < nnIndxLU[n + i]; k++) {
-        c[nnIndxLU[i] + k] = cm.cov(nnDist[nnIndxLU[i] + k]);
+        c_crosscov[nnIndxLU[i] + k] = cm.cov(nnDist[nnIndxLU[i] + k]);
         assert(nnDist[nnIndxLU[i] + k] ==
                df(coords.col(i), coords.col(nnIndx[nnIndxLU[i] + k])));
         for (ell = 0; ell <= k; ell++) {
-          C[CIndx[i] + ell * nnIndxLU[n + i] + k] =
-              cm.cov(D[CIndx[i] + ell * nnIndxLU[n + i] + k]);
+          C_cov[CIndx[i] + ell * nnIndxLU[n + i] + k] =
+              cm.cov(D_dist[CIndx[i] + ell * nnIndxLU[n + i] + k]);
         }
       }
       // Note symmetric, so shouldn't matter if I screw up row/col major here.
-      const Eigen::Map<const MatrixXd> eigenC(&C[CIndx[i]], nnIndxLU[i + n],
-                                              nnIndxLU[i + n]);
-      const Eigen::Map<const VectorXd> eigenc(&c[nnIndxLU[i]], nnIndxLU[i + n]);
+      const Eigen::Map<const MatrixXd> eigenC_cov(
+          &C_cov[CIndx[i]], nnIndxLU[i + n], nnIndxLU[i + n]);
+      const Eigen::Map<const VectorXd> eigenc_crosscov(&c_crosscov[nnIndxLU[i]],
+                                                       nnIndxLU[i + n]);
       // Might be good to figure out how to use solveInPlace here.
       auto Blocal = eigenB.segment(nnIndxLU[i], nnIndxLU[n + i]);
-      Blocal      = eigenC.llt().solve(eigenc);
-      eigenF[i]   = cm.cov(0.0) - Blocal.dot(eigenc);
+      Blocal      = eigenC_cov.llt().solve(eigenc_crosscov);
+      eigenF[i]   = cm.cov(0.0) - Blocal.dot(eigenc_crosscov);
     } else {
       B[i] = 0;
       F[i] = cm.cov(0.0);
