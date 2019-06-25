@@ -74,9 +74,9 @@ class CovModel {
 // Isometric Kernels
 // *****************************************************************************
 
-class IsometricCovModel : public CovModel {
+class IsotropicCovModel : public CovModel {
  public:
-  IsometricCovModel(double sigmaSq, double phi, const double phiUnifa,
+  IsotropicCovModel(double sigmaSq, double phi, const double phiUnifa,
                     const double phiUnifb, const double phiTuning,
                     const double sigmaSqIGa, const double sigmaSqIGb)
       : _sigmaSq(sigmaSq),
@@ -207,16 +207,16 @@ class IsometricCovModel : public CovModel {
   const double _sigmaSqIGa, _sigmaSqIGb;  // Inverse gamma prior on sigmaSq
 };
 
-class ExponentialCovModel : public IsometricCovModel {
+class ExponentialCovModel : public IsotropicCovModel {
  public:
-  using IsometricCovModel::IsometricCovModel;
+  using IsotropicCovModel::IsotropicCovModel;
 
   double cov(double x) const override { return _sigmaSq * std::exp(-x * _phi); }
 };
 
-class SphericalCovModel : public IsometricCovModel {
+class SphericalCovModel : public IsotropicCovModel {
  public:
-  using IsometricCovModel::IsometricCovModel;
+  using IsotropicCovModel::IsotropicCovModel;
 
   double cov(double x) const override {
     if (x > 0.0 && x < _phiInv) {
@@ -237,9 +237,9 @@ class SphericalCovModel : public IsometricCovModel {
   double _phiInv;
 };
 
-class SqExpCovModel : public IsometricCovModel {
+class SqExpCovModel : public IsotropicCovModel {
  public:
-  using IsometricCovModel::IsometricCovModel;
+  using IsotropicCovModel::IsotropicCovModel;
 
   double cov(double x) const override {
     return _sigmaSq * std::exp(-1.0 * std::pow(_phi * x, 2));
