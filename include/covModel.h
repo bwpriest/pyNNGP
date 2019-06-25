@@ -15,6 +15,7 @@ namespace pyNNGP {
 class CovModel {
  public:
   CovModel() {}
+
   virtual double cov(double) const = 0;
 
   virtual void update(SeqNNGP& seq) = 0;
@@ -22,7 +23,6 @@ class CovModel {
   virtual void precondition(MatrixXd& coords) = 0;
 
   virtual ~CovModel() {}
-
 };
 
 // *****************************************************************************
@@ -102,16 +102,16 @@ class IsometricCovModel : public CovModel {
 #pragma omp parallel for private(e, j, b) reduction(+ : a)
 #endif
     for (int i = 0; i < seq.n; i++) {
-      b = seq.w[i];
+      b = seq.w_vec[i];
       if (seq.nnIndxLU[seq.n + i] > 0) {
         e = 0.0;
         for (j = 0; j < seq.nnIndxLU[seq.n + i]; j++) {
-          e += seq.B[seq.nnIndxLU[i] + j] *
-               seq.w[seq.nnIndx[seq.nnIndxLU[i] + j]];
+          e += seq.B_mat[seq.nnIndxLU[i] + j] *
+               seq.w_vec[seq.nnIndx[seq.nnIndxLU[i] + j]];
         }
         b -= e;
       }
-      a += b * b / seq.F[i];
+      a += b * b / seq.F_mat[i];
     }
 
     std::gamma_distribution<> gamma{_sigmaSqIGa + seq.n / 2.0,
@@ -121,7 +121,7 @@ class IsometricCovModel : public CovModel {
 
   virtual void updatePhi(SeqNNGP& seq) {
     double phiCurrent = getPhi();
-    seq.updateBF(&seq.B[0], &seq.F[0], *this);
+    seq.updateBF(&seq.B_mat[0], &seq.F_mat[0], *this);
     double a      = 0.0;
     double b      = 0.0;
     double e      = 0.0;
@@ -133,17 +133,17 @@ class IsometricCovModel : public CovModel {
 #pragma omp parallel for private(e, j, b) reduction(+ : a, logDet)
 #endif
     for (int i = 0; i < seq.n; i++) {
-      b = seq.w[i];
+      b = seq.w_vec[i];
       if (seq.nnIndxLU[seq.n + i] > 0) {
         e = 0.0;
         for (j = 0; j < seq.nnIndxLU[seq.n + i]; j++) {
-          e += seq.B[seq.nnIndxLU[i] + j] *
-               seq.w[seq.nnIndx[seq.nnIndxLU[i] + j]];
+          e += seq.B_mat[seq.nnIndxLU[i] + j] *
+               seq.w_vec[seq.nnIndx[seq.nnIndxLU[i] + j]];
         }
         b -= e;
       }
-      a += b * b / seq.F[i];
-      logDet += std::log(seq.F[i]);
+      a += b * b / seq.F_mat[i];
+      logDet += std::log(seq.F_mat[i]);
     }
     double logPostCurrent = -0.5 * logDet - 0.5 * a;
     logPostCurrent += std::log(_phi - _phiUnifa) + std::log(_phiUnifb - _phi);
@@ -165,12 +165,12 @@ class IsometricCovModel : public CovModel {
 #pragma omp parallel for private(e, j, b) reduction(+ : a, logDet)
 #endif
     for (int i = 0; i < seq.n; i++) {
-      double b = seq.w[i];
+      double b = seq.w_vec[i];
       if (seq.nnIndxLU[seq.n + i] > 0) {
         double e = 0.0;
         for (int j = 0; j < seq.nnIndxLU[seq.n + i]; j++) {
           e += seq.Bcand[seq.nnIndxLU[i] + j] *
-               seq.w[seq.nnIndx[seq.nnIndxLU[i] + j]];
+               seq.w_vec[seq.nnIndx[seq.nnIndxLU[i] + j]];
         }
         b -= e;
       }
@@ -184,8 +184,8 @@ class IsometricCovModel : public CovModel {
 
     std::uniform_real_distribution<> unif{0.0, 1.0};
     if (unif(seq.gen) <= std::exp(logPostCand - logPostCurrent)) {
-      std::swap(seq.B, seq.Bcand);
-      std::swap(seq.F, seq.Fcand);
+      std::swap(seq.B_mat, seq.Bcand);
+      std::swap(seq.F_mat, seq.Fcand);
       // phiCand already set.
     } else {
       setPhi(phiCurrent);

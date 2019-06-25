@@ -41,11 +41,12 @@ void LinearNNGP::updateW() {
 
     updateWparts(i, a, v, e);
 
-    double mu  = (y[i] - Xt.col(i).dot(beta)) * nm.invTauSq(i) + e / F[i] + a;
-    double var = 1.0 / (nm.invTauSq(i) + 1.0 / F[i] + v);
+    double mu =
+        (y[i] - Xt.col(i).dot(beta)) * nm.invTauSq(i) + e / F_mat[i] + a;
+    double var = 1.0 / (nm.invTauSq(i) + 1.0 / F_mat[i] + v);
 
     std::normal_distribution<> norm{mu * var, std::sqrt(var)};
-    w[i] = norm(gen);
+    w_vec[i] = norm(gen);
   }
 }
 
@@ -59,7 +60,7 @@ void LinearNNGP::sample(int nSamples) {
 }
 
 void LinearNNGP::updateBeta() {
-  VectorXd tmp_p{nm.getXtW() * (y - w)};
+  VectorXd tmp_p{nm.getXtW() * (y - w_vec)};
   MatrixXd tmp_pp{nm.getXtWX()};
 
   // May be more efficient ways to do this...

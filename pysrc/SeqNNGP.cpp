@@ -66,15 +66,17 @@ void pyExportSeqNNGP(py::module& m) {
       .def_property_readonly(
           "B",
           [](SeqNNGP& s) -> py::array_t<double> {
-            return {{s.B.size()}, {sizeof(double)}, &s.B[0], py::cast(s)};
+            return {
+                {s.B_mat.size()}, {sizeof(double)}, &s.B_mat[0], py::cast(s)};
           })
       .def_property_readonly(
           "F",
           [](SeqNNGP& s) -> py::array_t<double> {
-            return {{s.F.size()}, {sizeof(double)}, &s.F[0], py::cast(s)};
+            return {
+                {s.F_mat.size()}, {sizeof(double)}, &s.F_mat[0], py::cast(s)};
           })
       .def_property_readonly("w", [](SeqNNGP& s) -> py::array_t<double> {
-        return {{s.w.size()}, {sizeof(double)}, &s.w[0], py::cast(s)};
+        return {{s.w_vec.size()}, {sizeof(double)}, &s.w_vec[0], py::cast(s)};
       });
 }
 }  // namespace pyNNGP

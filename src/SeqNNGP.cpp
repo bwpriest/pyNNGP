@@ -30,12 +30,12 @@ SeqNNGP::SeqNNGP(const double* _y, const double* _coords, const int _d,
       df(_df),
       nm(_nm),
       gen(rd()),
-      w(VectorXd::Zero(n)) {
+      w_vec(VectorXd::Zero(n)) {
   // build the neighbor index
   nnIndx.resize(nIndx);
   nnDist.resize(nIndx);
   nnIndxLU.resize(2 * n);
-  w.resize(n);
+  w_vec.resize(n);
 
   std::cout << "Finding neighbors" << '\n';
   auto start = std::chrono::high_resolution_clock::now();
@@ -52,9 +52,9 @@ SeqNNGP::SeqNNGP(const double* _y, const double* _coords, const int _d,
   diff = end - start;
   std::cout << "duration = " << diff.count() << "s" << '\n';
 
-  B.resize(nIndx);
+  B_mat.resize(nIndx);
   Bcand.resize(nIndx);
-  F.resize(n);
+  F_mat.resize(n);
   Fcand.resize(n);
   std::cout << "Making CD" << '\n';
   start = std::chrono::high_resolution_clock::now();
@@ -65,7 +65,7 @@ SeqNNGP::SeqNNGP(const double* _y, const double* _coords, const int _d,
 
   std::cout << "updating BF" << '\n';
   start = std::chrono::high_resolution_clock::now();
-  updateBF(&B[0], &F[0], cm);
+  updateBF(&B_mat[0], &F_mat[0], cm);
   end  = std::chrono::high_resolution_clock::now();
   diff = end - start;
   std::cout << "duration = " << diff.count() << "s" << '\n';
@@ -131,6 +131,9 @@ void SeqNNGP::mkCD() {
   C_cov.resize(j);
   c_crosscov.resize(nIndx);
   D_dist.resize(j);
+
+  // This piece is currently used only by an Isometric kernel. For other
+  // kernels, this work is wasted.
   for (int i = 0; i < n; i++) {                  // for all elements
     for (int k = 0; k < nnIndxLU[n + i]; k++) {  // for all neighbors of i
       for (int ell = 0; ell <= k; ell++) {       // lower triangular elements
@@ -167,10 +170,14 @@ void SeqNNGP::updateBF(double* B, double* F, CovModel& cm) {
       // I think these are essentially the constituents of eq (3) of Datta++14
       // I.e., we're updating auto- and cross-covariances
       for (k = 0; k < nnIndxLU[n + i]; k++) {
+        int i1 = nnIndx[nnIndxLU[i] + k];
+        // get cross-covariance between i and its kth neighbor
         c_crosscov[nnIndxLU[i] + k] = cm.cov(nnDist[nnIndxLU[i] + k]);
         assert(nnDist[nnIndxLU[i] + k] ==
                df(coords.col(i), coords.col(nnIndx[nnIndxLU[i] + k])));
         for (ell = 0; ell <= k; ell++) {
+          int i2 = nnIndx[nnIndxLU[i] + ell];
+          // Get covariance between i's kth and (ell*m + k)th neighbor.
           C_cov[CIndx[i] + ell * nnIndxLU[n + i] + k] =
               cm.cov(D_dist[CIndx[i] + ell * nnIndxLU[n + i] + k]);
         }
@@ -201,16 +208,17 @@ void SeqNNGP::updateWparts(const int i, double& a, double& v, double& e) {
         int kk = nnIndx[nnIndxLU[jj] + k];  // index of jj's kth neighbor
         if (kk != i) {                      // if the neighbor of jj is not i
           // covariance between jj and kk and the random effect of kk
-          b += B[nnIndxLU[jj] + k] * w[kk];
+          b += B_mat[nnIndxLU[jj] + k] * w_vec[kk];
         }
       }
-      a += B[nnIndxLU[jj] + uiIndx[uIndxLU[i] + j]] * (w[jj] - b) / F[jj];
-      v += pow(B[nnIndxLU[jj] + uiIndx[uIndxLU[i] + j]], 2) / F[jj];
+      a += B_mat[nnIndxLU[jj] + uiIndx[uIndxLU[i] + j]] * (w_vec[jj] - b) /
+           F_mat[jj];
+      v += pow(B_mat[nnIndxLU[jj] + uiIndx[uIndxLU[i] + j]], 2) / F_mat[jj];
     }
   }
 
   for (int j = 0; j < nnIndxLU[n + i]; j++) {
-    e += B[nnIndxLU[i] + j] * w[nnIndx[nnIndxLU[i] + j]];
+    e += B_mat[nnIndxLU[i] + j] * w_vec[nnIndx[nnIndxLU[i] + j]];
   }
 }
 
@@ -221,11 +229,11 @@ void SeqNNGP::updateW() {
     double e = 0.0;
     updateWparts(i, a, v, e);
 
-    double mu  = y[i] * nm.invTauSq(i) + e / F[i] + a;
-    double var = 1.0 / (nm.invTauSq(i) + 1.0 / F[i] + v);
+    double mu  = y[i] * nm.invTauSq(i) + e / F_mat[i] + a;
+    double var = 1.0 / (nm.invTauSq(i) + 1.0 / F_mat[i] + v);
 
     std::normal_distribution<> norm{mu * var, std::sqrt(var)};
-    w[i] = norm(gen);
+    w_vec[i] = norm(gen);
   }
 }
 

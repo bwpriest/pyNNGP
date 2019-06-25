@@ -30,7 +30,7 @@ class IGNoiseModel : public NoiseModel {
         _IGb(IGb) {}
 
   virtual void update(SeqNNGP& seq) override {
-    VectorXd                  tmp_n = seq.y - seq.w - seq.additiveModel();
+    VectorXd                  tmp_n = seq.y - seq.w_vec - seq.additiveModel();
     std::gamma_distribution<> gamma{_IGa + seq.n / 2.,
                                     _IGb + 0.5 * tmp_n.squaredNorm()};
     _invTauSq = gamma(seq.gen);

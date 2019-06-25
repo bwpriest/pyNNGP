@@ -13,6 +13,7 @@ using Eigen::VectorXd;
  */
 namespace pyNNGP {
 class CovModel;
+class IsometricCovModel;
 class NoiseModel;
 class DistFunc;
 class SeqNNGP {
@@ -94,8 +95,8 @@ class SeqNNGP {
 
   // These are mostly internal, but I'm too lazy for the moment to make them
   // private. We allocate this memory ourselves.
-  std::vector<double> B;      // [nIndx]
-  std::vector<double> F;      // [n]
+  std::vector<double> B_mat;  // [nIndx]
+  std::vector<double> F_mat;  // [n]
   std::vector<double> Bcand;  // [nIndx]
   std::vector<double> Fcand;  // [n]
   // stacked q x mq cross-covariance matrices C_{s_i, N(s_i)} between w(s_i) and
@@ -106,7 +107,7 @@ class SeqNNGP {
   std::vector<double> C_cov;  // [~n*m*m]
   // stacked ~ (m x m) cross pairwise distances for N(s_i).
   std::vector<double> D_dist;  // [~n*m*m]
-  VectorXd            w;       // [n] Latent GP samples
+  VectorXd            w_vec;   // [n] Latent GP samples
 
   // return the additive model against which the GP is modeling discrepency.
   // This is the zero vector for the raw NNGP.
@@ -115,6 +116,7 @@ class SeqNNGP {
   virtual void sample(int nSamples);  // One Gibbs iteration
 
   // Use a particular covariance model to update given B and F vectors.
+  // void         updateBF(double*, double*, IsometricCovModel&);
   void         updateBF(double*, double*, CovModel&);
   virtual void updateW();
 
