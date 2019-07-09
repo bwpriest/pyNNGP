@@ -14,5 +14,9 @@ void pyExportDistFunc(py::module& m) {
       .def(py::init<>())
       .def("__call__", [](const EuclideanDistFunc& f, const Eigen::VectorXd& a,
                           const Eigen::VectorXd& b) { return f(a, b); });
+  py::class_<DotProductDistFunc, DistFunc>(m, "DotProduct")
+      .def(py::init<>())
+      .def("__call__", [](const DotProductDistFunc& f, const Eigen::VectorXd& a,
+                          const Eigen::VectorXd& b) { return f(a, b); });
 }
 }  // namespace pyNNGP

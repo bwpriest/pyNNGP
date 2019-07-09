@@ -1,6 +1,8 @@
 #ifndef NNGP_covModel_h
 #define NNGP_covModel_h
 
+#define _USE_MATH_DEFINES
+
 #include <Eigen/Dense>
 #include <cmath>
 #include <random>
@@ -20,8 +22,6 @@ class CovModel {
 
   virtual void update(SeqNNGP& seq) = 0;
 
-  virtual void precondition(MatrixXd& coords) = 0;
-
   virtual ~CovModel() {}
 };
 
@@ -37,38 +37,71 @@ class CovModel {
  * that the network uses reLU activations.
  */
 
-// class NeuralNetworkCovModel : public CovModel {
-//  public:
-//   NeuralNetworkCovModel(const int din, const int L, const double sigmaSqW,
-//                         const double sigmaSqB)
-//       : _din(din),
-//         _L(L),
-//         _sigmaSqW(sigmaSqW),
-//         _sigmaSqB(sigmaSqB) {}
+class NeuralNetworkCovModel : public CovModel {
+ public:
+  NeuralNetworkCovModel(const int L, const double sigmaSqW,
+                        const double sigmaSqB)
+      : _L(L), _sigmaSqW(sigmaSqW), _sigmaSqB(sigmaSqB), Kxx(L) {
+    Kxx[0] = get_K_0(1.0);  // Assuming all inputs normalized.
+    for (int ell = 1; ell < _L; ++ell) {
+      Kxx[ell] = get_K_l(Kxx[ell - 1], ell);
+    }
+  }
 
-//   /**
-//    * We assume that the hyperparameters are fixed for now.
-//    */
-//   void update(SeqNNGP& seq) override{};
+  inline double getSigmaSqB() const { return _sigmaSqB; }
+  inline double getSigmaSqW() const { return _sigmaSqW; }
 
-//   /**
-//    * Calls the NNGP covariance function.
-//    *
-//    * NEEDS REFACTOR: must get both x and x^\prime.
-//    */
-//   double cov(double x) const override {
-//     double K_0 = _sigmaSqB + _sigmaSqW * (x / _din);
-//   }
+  /**
+   * We assume that the hyperparameters are fixed for now.
+   */
+  void update(SeqNNGP& seq) override {
+    seq.updateBF(&seq.B_mat[0], &seq.F_mat[0], *this);
+  };
 
-//  protected:
-//   double next_K(double K_last) {}
+  /**
+   * Calls the NNGP covariance function.
+   *
+   * NEEDS REFACTOR: must get both x and x^\prime.
+   */
+  double cov(double x) const override {
+    double K = get_K_0(x);
+    for (int ell = 1; ell < _L; ++ell) { K = get_K_l(K, ell); }
+    return K;
+  }
 
-//   const int _din;
-//   const int _L;
-//   // Not const because we might want to implement sampling later
-//   double _sigmaSqW;
-//   double _sigmaSqB;
-// };
+ protected:
+  /**
+   * Assuming that all inputs have norm 1.
+   */
+  constexpr double get_K_0(const double x) const {
+    return _sigmaSqB + _sigmaSqW * x;
+  }
+
+  /**
+   * First part of Eq. (11) from [1].
+   */
+  inline double get_K_l(const double Kuv, const int ell) const {
+    double theta = get_theta(Kuv, ell);
+    return _sigmaSqB + (_sigmaSqW / (2 * M_PI)) * Kxx[ell] *
+                           (std::sin(theta) + (M_PI - theta) * std::cos(theta));
+  }
+
+  /**
+   * Second part of Eq. (11) from [1].
+   */
+  inline double get_theta(const double Kuv, const int ell) const {
+    return std::acos(Kuv / Kxx[ell]);
+  }
+
+  const int _L;
+  // Not const because we might want to implement sampling later
+  double _sigmaSqW;
+  double _sigmaSqB;
+
+  // Stores the self-kernel values at each recursive level. Only needed once as
+  // inputs are assumed to be normalized.
+  std::vector<double> Kxx;
+};
 
 // *****************************************************************************
 // Isometric Kernels
@@ -196,8 +229,6 @@ class IsotropicCovModel : public CovModel {
     updateSigmaSq(seq);
     updatePhi(seq);
   }
-
-  void precondition(MatrixXd& coords) override {}
 
  protected:
   double       _sigmaSq;

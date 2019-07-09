@@ -20,6 +20,14 @@ class EuclideanDistFunc : public DistFunc {
   }
 };
 
+class DotProductDistFunc : public DistFunc {
+ public:
+  double operator()(const Eigen::VectorXd& a,
+                    const Eigen::VectorXd& b) const override {
+    return a.dot(b);
+  }
+};
+
 }  // namespace pyNNGP
 
 #endif

@@ -29,5 +29,11 @@ void pyExportCovModel(py::module& m) {
            "sigmaSq"_a, "phi"_a, "phiUnifa"_a, "phiUnifb"_a, "phiTuning"_a,
            "sigmaSqIGa"_a, "sigmaSqIGb"_a)
       .def("cov", &SqExpCovModel::cov);
+
+  py::class_<NeuralNetworkCovModel, CovModel>(m, "NNKernel")
+      .def(py::init<int, double, double>(), "L"_a, "sigmaSqW"_a, "sigmaSqB"_a)
+      .def_property_readonly("sigmaSqW", &NeuralNetworkCovModel::getSigmaSqW)
+      .def_property_readonly("sigmaSqB", &NeuralNetworkCovModel::getSigmaSqB)
+      .def("cov", &NeuralNetworkCovModel::cov);
 }
 }  // namespace pyNNGP
