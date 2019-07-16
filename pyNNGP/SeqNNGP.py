@@ -38,7 +38,7 @@ class SeqNNGP:
         noiseModel,
         normalize=False,
     ):
-        self.y = np.ascontiguousarray(np.atleast_1d(y))
+        self.y = np.ascontiguousarray(np.atleast_2d(y))
         # Sort by coords[:, 0] first?
         self.coords = np.ascontiguousarray(np.atleast_2d(coords))
         self.nNeighbors = nNeighbors
@@ -49,11 +49,14 @@ class SeqNNGP:
         if normalize == True:
             self.coords = self.coords / self.coords.sum(axis=0)
 
+        if self.y.shape[0] == 1:
+            self.y = np.ascontiguousarray(np.reshape(y, (self.y.shape[1], 1)))
         assert self.coords.shape[0] == self.y.shape[0]
         self._SeqNNGP = _pyNNGP.SeqNNGP(
             self.y.ctypes.data,  # target values
             self.coords.ctypes.data,  # input features
             self.coords.shape[1],  # # of input of dimensions
+            self.y.shape[1],  # 1 or # of output labels
             self.coords.shape[0],  # # of sample/target pairs
             self.nNeighbors,  # maximum # of nearest neighbors for conditioning
             self.covModel,  # covariance function to be used

@@ -9,7 +9,13 @@ using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
 /**
- * Nearest-Neighbor Gaussian Process. Based upon [DBFG16].
+ * Nearest-Neighbor Gaussian Process. Implementations based upon
+ *
+ * [1] Hierarchical Nearest-Neighbor Gaussian Process Models for Large
+ * Geostatistical Datasets (https://arxiv.org/abs/1406.7343)
+ *
+ * [2] Efficient Algorithms for Bayesian Nearest Neighbor Gaussian Processes
+ * (https://arxiv.org/abs/1702.00434)
  */
 namespace pyNNGP {
 class CovModel;
@@ -18,21 +24,12 @@ class NoiseModel;
 class DistFunc;
 class SeqNNGP {
  public:
-  SeqNNGP(const double* _y, const double* _coords, const int _d, const int _n,
-          const int _m, CovModel& _cm, DistFunc& _df, NoiseModel& _nm);
-
-  inline int nn_count(const int i) const {
-    assert(i < n);
-    return nnIndxLU[n + i];
-  }
-
-  inline int nn_index(const int i) const {
-    assert(i < n);
-    return nnIndxLU[i];
-  }
+  SeqNNGP(const double* _y_targets, const double* _coords, const int _d_idim,
+          const int _q_ldim, const int _n_samples, const int _m_nns,
+          CovModel& _cm, DistFunc& _df, NoiseModel& _nm);
 
   /** Nearest neighbors ranges
-   * Lower part holds starting index for each node
+   * Lower part holds starting index (in nnIndx) for each node
    * Upper part holds number of elements for each node
    *
    * size : [2*n]
@@ -78,12 +75,13 @@ class SeqNNGP {
   std::vector<int> CIndx;
 
   const int d;      // Number of input dimensions
+  const int q;      // Number of output dimensions (classes if > 1);
   const int n;      // Number of input locations
   const int m;      // Number of nearest neighbors
   const int nIndx;  // Total number of neighbors (DAG edges)
 
   // Use existing memory here (allocated in python-layer)
-  const Eigen::Map<const VectorXd> y;       // [n]
+  const Eigen::Map<const MatrixXd> y;       // [q, n] ([n, q] in python)
   const Eigen::Map<const MatrixXd> coords;  // [d, n]  ([n, d] in python)
 
   CovModel&   cm;  // Model for GP covariances
@@ -120,17 +118,51 @@ class SeqNNGP {
   void         updateBF(double*, double*, CovModel&);
   virtual void updateW();
 
-  /** Produce a MAP estimate of the input coordinates.
-   *
-   */
   void predict(const double* coords, const int* nnIndx0, int q, double* w0,
                double* y0);
+
+  /**
+   * Produce maximium a posteriori (MAP) estimate for each set of input
+   * coordinates. Operates over the columns of Xstar, a [dstar, nstar] matrix
+   * representing nstar points of dstar coordinates. dstar must equal d.
+   * Implements Eq. (5) from [2], where B_mat and F_mat correspond to A and D in
+   * [2].
+   */
+  Eigen::MatrixXd MAPPredict(const double* Xstar, const int nstar,
+                             const int dstar);
 
  protected:
   void mkUIndx();
   void mkUIIndx();
   void mkCD();
   void updateWparts(const int i, double& a, double& v, double& e);
+
+  /**
+   * Compute a quadratic form u^T C^{-1} v in terms of B_mat and F_mat.
+   * Implements Eq. (5) from [2].
+   */
+  double quadratic_form(const std::vector<double>&,
+                        const std::vector<double>&) const;
+
+  Eigen::VectorXd regression_univariate(const Eigen::VectorXd&) const;
+
+  /**
+   * Initialize regression_coeffs, a q x n matrix whose rows are of the form of
+   * the vectors v from Eq. (5) of [2]. If q > 1, each row of
+   * regression_coeffs corresponds to a separate regression target for the qth
+   * classification label.
+   *
+   * We precomput regression_coeffs so as to reduce computation for the
+   * regression of more than one target.
+   *
+   * Requires significant storage, so might not ultimately be worthwhile.
+   */
+  void regression_init();
+
+  // Has regression_init() run with current B_mat, F_mat?
+  bool regression_ready;
+
+  Eigen::MatrixXd regression_coeffs;  // [q, n] ([n, q] in python)
 };
 
 }  // namespace pyNNGP

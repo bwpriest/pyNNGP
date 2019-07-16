@@ -17,19 +17,23 @@ using Eigen::VectorXd;
 using Eigen::VectorXi;
 
 namespace pyNNGP {
-SeqNNGP::SeqNNGP(const double* _y, const double* _coords, const int _d,
-                 const int _n, const int _m, CovModel& _cm, DistFunc& _df,
+SeqNNGP::SeqNNGP(const double* _y_targets, const double* _coords,
+                 const int _d_idim, const int _q_ldim, const int _n_samples,
+                 const int _m_nns, CovModel& _cm, DistFunc& _df,
                  NoiseModel& _nm)
-    : d(_d),
-      n(_n),
-      m(_m),
+    : d(_d_idim),
+      q(_q_ldim),
+      n(_n_samples),
+      m(_m_nns),
       nIndx(m * (m + 1) / 2 + (n - m - 1) * m),
-      y(_y, n),
+      y(_y_targets, q, n),    // n x q in python is q x n in Eigen
       coords(_coords, d, n),  // n x d in python is d x n in Eigen
       cm(_cm),
       df(_df),
       nm(_nm),
       gen(rd()),
+      regression_ready(false),
+      regression_coeffs(Eigen::MatrixXd::Zero(q, n)),
       w_vec(VectorXd::Zero(n)) {
   // build the neighbor index
   nnIndx.resize(nIndx);
@@ -170,13 +174,13 @@ void SeqNNGP::updateBF(double* B, double* F, CovModel& cm) {
       // I think these are essentially the constituents of eq (3) of Datta++14
       // I.e., we're updating auto- and cross-covariances
       for (k = 0; k < nnIndxLU[n + i]; k++) {
-        int i1 = nnIndx[nnIndxLU[i] + k];
+        // int i1 = nnIndx[nnIndxLU[i] + k];
         // get cross-covariance between i and its kth neighbor
         c_crosscov[nnIndxLU[i] + k] = cm.cov(nnDist[nnIndxLU[i] + k]);
         assert(nnDist[nnIndxLU[i] + k] ==
                df(coords.col(i), coords.col(nnIndx[nnIndxLU[i] + k])));
         for (ell = 0; ell <= k; ell++) {
-          int i2 = nnIndx[nnIndxLU[i] + ell];
+          // int i2 = nnIndx[nnIndxLU[i] + ell];
           // Get covariance between i's kth and (ell*m + k)th neighbor.
           C_cov[CIndx[i] + ell * nnIndxLU[n + i] + k] =
               cm.cov(D_dist[CIndx[i] + ell * nnIndxLU[n + i] + k]);
@@ -229,11 +233,86 @@ void SeqNNGP::updateW() {
     double e = 0.0;
     updateWparts(i, a, v, e);
 
-    double mu  = y[i] * nm.invTauSq(i) + e / F_mat[i] + a;
+    assert(q == 1);  // If q != 1 we should not be here. This is klugy and must
+                     // be fixed.
+    double mu  = y(0, i) * nm.invTauSq(i) + e / F_mat[i] + a;
     double var = 1.0 / (nm.invTauSq(i) + 1.0 / F_mat[i] + v);
 
     std::normal_distribution<> norm{mu * var, std::sqrt(var)};
     w_vec[i] = norm(gen);
+  }
+}
+
+double SeqNNGP::quadratic_form(const std::vector<double>& u,
+                               const std::vector<double>& v) const {
+  assert(u.size() == n);
+  assert(v.size() == n);
+
+  std::vector<double> results(n);
+  results[0] = u[0] * v[0] / F_mat[0];
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+  for (int i = 1; i < n; ++i) {
+    double left  = u[i];
+    double right = v[i];
+    for (int j = 0; j < nnIndxLU[n + 1]; ++j) {  // for i's jth neighbor
+      int jj = nnIndx[nnIndxLU[i] + j];          // index of i's jth neighbor
+      left -= u[jj] * B_mat[jj];
+      right -= v[jj] * B_mat[jj];
+    }
+    results[i] = left * right / F_mat[i];
+  }
+  return std::accumulate(std::begin(results), std::end(results), 0.0);
+}
+
+Eigen::MatrixXd SeqNNGP::MAPPredict(const double* Xstar, const int nstar,
+                                    const int dstar) {
+  assert(dstar == d);
+  if (!regression_ready) {
+    regression_init();
+    regression_ready = true;
+  }
+  // [nstar, dstar] in python
+  const Eigen::Map<const MatrixXd> eigenXstar(Xstar, dstar, nstar);
+  MatrixXd                         eigenYstar = Eigen::MatrixXd::Zero(q, nstar);
+
+  for (int i = 0; i < nstar; ++i) {
+    eigenYstar.col(i) = regression_univariate(eigenXstar.col(i));
+  }
+  return eigenYstar;
+}
+
+Eigen::VectorXd SeqNNGP::regression_univariate(const Eigen::VectorXd& u) const {
+  assert(u.size() == n);
+
+  Eigen::VectorXd results = u(0) * regression_coeffs.col(0) / F_mat[0];
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+  for (int i = 1; i < n; ++i) {
+    double left = u(i);
+    for (int j = 0; j < nnIndxLU[n + 1]; ++j) {  // for i's jth neighbor
+      const int jj = nnIndx[nnIndxLU[i] + j];    // index of i's jth neighbor
+      left -= u(jj) * B_mat[jj];
+    }
+    results += left * regression_coeffs.col(i) / F_mat[i];
+  }
+  return results;
+}
+
+void SeqNNGP::regression_init() {
+  regression_coeffs = y;
+  for (int i = 1; i < n; ++i) {
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+    for (int j = 0; j < nnIndxLU[n + i]; ++j) {
+      const int jj = nnIndx[nnIndxLU[i] + j];  // index of i's jth neighbor
+      for (int k = 0; k < q; ++k) {
+        regression_coeffs(k, i) -= y(k, jj) * B_mat[jj];
+      }
+    }
   }
 }
 

@@ -30,8 +30,10 @@ class CovModel {
 // *****************************************************************************
 
 /**
- * The neural network gaussian process covariance function from "Deep Neural
- * Networks as Gaussian Processes" https://arxiv.org/abs/1711.00165.
+ * The neural network gaussian process covariance function from
+ *
+ * [3] Deep Neural Networks as Gaussian Processes
+ * (https://arxiv.org/abs/1711.00165)
  *
  * We currently assume that variance parameters are fixed, and
  * that the network uses reLU activations.
@@ -78,7 +80,7 @@ class NeuralNetworkCovModel : public CovModel {
   }
 
   /**
-   * First part of Eq. (11) from [1].
+   * First part of Eq. (11) from [3].
    */
   inline double get_K_l(const double Kuv, const int ell) const {
     double theta = get_theta(Kuv, ell);
@@ -87,7 +89,7 @@ class NeuralNetworkCovModel : public CovModel {
   }
 
   /**
-   * Second part of Eq. (11) from [1].
+   * Second part of Eq. (11) from [3].
    */
   inline double get_theta(const double Kuv, const int ell) const {
     return std::acos(Kuv / Kxx[ell]);

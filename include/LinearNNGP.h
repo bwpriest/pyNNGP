@@ -20,9 +20,9 @@ class DistFunc;
  */
 class LinearNNGP : public SeqNNGP {
  public:
-  LinearNNGP(const double* _y, const double* _X, const double* _coords, int _d,
-             int _p, int _n, int _m, CovModel& _cm, DistFunc& _df,
-             NoiseModel& _nm);
+  LinearNNGP(const double* _y, const double* _X, const double* _coords,
+             const int _d, const int _q, const int _p, const int _n,
+             const int _m, CovModel& _cm, DistFunc& _df, NoiseModel& _nm);
 
   const int p;  // Number of indicators per input location
 

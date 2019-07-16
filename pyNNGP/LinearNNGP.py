@@ -46,7 +46,7 @@ class LinearNNGP:
         normalize=False,
     ):
         self.X = np.ascontiguousarray(np.atleast_2d(X))
-        self.y = np.ascontiguousarray(np.atleast_1d(y))
+        self.y = np.ascontiguousarray(np.atleast_2d(y))
         # Sort by coords[:, 0] first?
         self.coords = np.ascontiguousarray(np.atleast_2d(coords))
         self.nNeighbors = nNeighbors
@@ -57,12 +57,16 @@ class LinearNNGP:
         if normalize == True:
             self.coords = self.coords / self.coords.sum(axis=0)
 
+        if self.y.shape[0] == 1:
+            self.y = np.ascontiguousarray(np.reshape(y, (self.y.shape[1], 1)))
+
         assert self.coords.shape[0] == self.X.shape[0] == self.y.shape[0]
         self._LinearNNGP = _pyNNGP.LinearNNGP(
             self.y.ctypes.data,  # target values
             self.X.ctypes.data,  # fixed spatially-referenced predictors
             self.coords.ctypes.data,  # input locations
             self.coords.shape[1],  # # of input dimensions
+            self.y.shape[1],  # 1 or # of class labels
             self.X.shape[1],  # # of indicators per input location
             self.coords.shape[0],  #  # of location/target pairs
             self.nNeighbors,  # maximum # of nearest neighbors for conditioning

@@ -20,15 +20,18 @@ using Eigen::VectorXi;
 
 namespace pyNNGP {
 LinearNNGP::LinearNNGP(const double* _y, const double* _X,
-                       const double* _coords, const int _d, const int _p,
-                       const int _n, const int _m, CovModel& _cm, DistFunc& _df,
-                       NoiseModel& _nm)
-    : SeqNNGP(_y, _coords, _d, _n, _m, _cm, _df, _nm), p(_p), Xt(_X, p, n) {
+                       const double* _coords, const int _d, const int _q,
+                       const int _p, const int _n, const int _m, CovModel& _cm,
+                       DistFunc& _df, NoiseModel& _nm)
+    : SeqNNGP(_y, _coords, _d, _q, _n, _m, _cm, _df, _nm), p(_p), Xt(_X, p, n) {
   // build the neighbor index
   nm.setX(Xt);
 
-  beta =
-      Xt.transpose().bdcSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(y);
+  // Klugy!
+  assert(q == 1);
+  beta = Xt.transpose()
+             .bdcSvd(Eigen::ComputeThinU | Eigen::ComputeThinV)
+             .solve(y.row(0));
 }
 
 VectorXd LinearNNGP::additiveModel() const { return Xt.transpose() * beta; }
@@ -41,8 +44,10 @@ void LinearNNGP::updateW() {
 
     updateWparts(i, a, v, e);
 
+    assert(q == 1);  // If q != 1 we should not be here. This is klugy and must
+                     // be fixed.
     double mu =
-        (y[i] - Xt.col(i).dot(beta)) * nm.invTauSq(i) + e / F_mat[i] + a;
+        (y(0, i) - Xt.col(i).dot(beta)) * nm.invTauSq(i) + e / F_mat[i] + a;
     double var = 1.0 / (nm.invTauSq(i) + 1.0 / F_mat[i] + v);
 
     std::normal_distribution<> norm{mu * var, std::sqrt(var)};
@@ -60,7 +65,9 @@ void LinearNNGP::sample(int nSamples) {
 }
 
 void LinearNNGP::updateBeta() {
-  VectorXd tmp_p{nm.getXtW() * (y - w_vec)};
+  // Klugy!
+  assert(q == 1);
+  VectorXd tmp_p{nm.getXtW() * (y.row(0) - w_vec)};
   MatrixXd tmp_pp{nm.getXtWX()};
 
   // May be more efficient ways to do this...
