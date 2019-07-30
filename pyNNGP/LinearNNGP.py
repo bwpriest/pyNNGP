@@ -61,14 +61,20 @@ class LinearNNGP:
             self.y = np.ascontiguousarray(np.reshape(y, (self.y.shape[1], 1)))
 
         assert self.coords.shape[0] == self.X.shape[0] == self.y.shape[0]
+
+        d = self.coords.shape[1]  # # of input of dimensions
+        q = self.y.shape[1]  # 1 or # of output labels
+        p = self.X.shape[1]  # # of indicators per input location
+        n = self.coords.shape[0]  # # of sample/target pairs
+
         self._LinearNNGP = _pyNNGP.LinearNNGP(
             self.y.ctypes.data,  # target values
             self.X.ctypes.data,  # fixed spatially-referenced predictors
             self.coords.ctypes.data,  # input locations
-            self.coords.shape[1],  # # of input dimensions
-            self.y.shape[1],  # 1 or # of class labels
-            self.X.shape[1],  # # of indicators per input location
-            self.coords.shape[0],  #  # of location/target pairs
+            d,  # # of input dimensions
+            q,  # 1 or # of class labels
+            p,  # # of indicators per input location
+            n,  #  # of location/target pairs
             self.nNeighbors,  # maximum # of nearest neighbors for conditioning
             self.covModel,  # covariance function to be used
             self.distFunc,  # distance/similarity function to be used

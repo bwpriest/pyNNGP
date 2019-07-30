@@ -37,8 +37,8 @@ class SeqNNGP {
   std::vector<int> nnIndxLU;
 
   /** Nearest neighbors index
-   * Holds the indices of the neighbors of each node. Allocate our own memory
-   * for these
+   * Holds the indices of the neighbors of each node in B_mat. Allocate our own
+   * memory for these
    *
    * size : [nIndx]
    */
@@ -118,6 +118,8 @@ class SeqNNGP {
   void         updateBF(double*, double*, CovModel&);
   virtual void updateW();
 
+  Eigen::MatrixXd get_regression_coeffs();
+
   void predict(const double* coords, const int* nnIndx0, int q, double* w0,
                double* y0);
 
@@ -128,8 +130,10 @@ class SeqNNGP {
    * Implements Eq. (5) from [2], where B_mat and F_mat correspond to A and D in
    * [2].
    */
-  Eigen::MatrixXd MAPPredict(const double* Xstar, const int nstar,
-                             const int dstar);
+  //   int MAPPredict(const double* Xstar, const int nstar, const int dstar);
+  Eigen::MatrixXd MAPPredict(const Eigen::Ref<const Eigen::MatrixXd>& Xstar);
+  //   Eigen::MatrixXd MAPPredict(const double* Xstar, const int nstar,
+  //                              const int dstar);
 
  protected:
   void mkUIndx();
@@ -145,6 +149,8 @@ class SeqNNGP {
                         const std::vector<double>&) const;
 
   Eigen::VectorXd regression_univariate(const Eigen::VectorXd&) const;
+
+  Eigen::VectorXd dense_crosscov(const Eigen::Ref<const Eigen::VectorXd>&);
 
   /**
    * Initialize regression_coeffs, a q x n matrix whose rows are of the form of

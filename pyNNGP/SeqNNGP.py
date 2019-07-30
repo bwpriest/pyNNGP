@@ -1,6 +1,8 @@
 from . import _pyNNGP
 import numpy as np
 
+from sklearn.preprocessing import normalize as sk_normalize
+
 
 class SeqNNGP:
     """Nearest Neighgor Gaussian Process (NNGP)
@@ -45,19 +47,25 @@ class SeqNNGP:
         self.covModel = covModel
         self.distFunc = distFunc
         self.noiseModel = noiseModel
+        self.normalize = normalize
 
         if normalize == True:
-            self.coords = self.coords / self.coords.sum(axis=0)
+            self.coords = sk_normalize(self.coords, axis=1, norm="l2")
 
         if self.y.shape[0] == 1:
             self.y = np.ascontiguousarray(np.reshape(y, (self.y.shape[1], 1)))
         assert self.coords.shape[0] == self.y.shape[0]
+
+        d = self.coords.shape[1]  # # of input of dimensions
+        q = self.y.shape[1]  # 1 or # of output labels
+        n = self.coords.shape[0]  # # of sample/target pairs
+
         self._SeqNNGP = _pyNNGP.SeqNNGP(
             self.y.ctypes.data,  # target values
             self.coords.ctypes.data,  # input features
-            self.coords.shape[1],  # # of input of dimensions
-            self.y.shape[1],  # 1 or # of output labels
-            self.coords.shape[0],  # # of sample/target pairs
+            d,  # # of input of dimensions
+            q,  # 1 or # of output labels
+            n,  # # of sample/target pairs
             self.nNeighbors,  # maximum # of nearest neighbors for conditioning
             self.covModel,  # covariance function to be used
             self.distFunc,  # distance/similarity function to be used
@@ -80,6 +88,17 @@ class SeqNNGP:
     def updateTauSq(self):
         self._SeqNNGP.updateTauSq()
 
+    def MAPPredict(self, Xstar):
+        nstar, dstar = Xstar.shape
+        Xstar = np.reshape(Xstar, (dstar, nstar))
+        Xstar = np.ascontiguousarray(np.atleast_2d(Xstar))
+        if self.normalize:
+            Xstar = sk_normalize(Xstar, axis=1, norm="l2").T
+        if nstar == 1:
+            Xstar = np.ascontiguousarray(np.reshape(Xstar, (dstar, 1)))
+        # return self._SeqNNGP.MAPPredict(Xstar.ctypes.data, nstar, dstar), Xstar
+        return self._SeqNNGP.MAPPredict(Xstar), Xstar
+
     @property
     def w(self):
         return self._SeqNNGP.w
@@ -95,3 +114,7 @@ class SeqNNGP:
     @property
     def F(self):
         return self._SeqNNGP.F
+
+    @property
+    def coeffs(self):
+        return self._SeqNNGP.coeffs

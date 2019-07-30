@@ -73,6 +73,14 @@ SeqNNGP::SeqNNGP(const double* _y_targets, const double* _coords,
   end  = std::chrono::high_resolution_clock::now();
   diff = end - start;
   std::cout << "duration = " << diff.count() << "s" << '\n';
+
+  std::cout << "initiating regression coefficients"
+            << "\n";
+  start = std::chrono::high_resolution_clock::now();
+  regression_init();
+  end  = std::chrono::high_resolution_clock::now();
+  diff = end - start;
+  std::cout << "duration = " << diff.count() << "s" << '\n';
 }
 
 void SeqNNGP::sample(int nSamples) {
@@ -257,44 +265,74 @@ double SeqNNGP::quadratic_form(const std::vector<double>& u,
     double left  = u[i];
     double right = v[i];
     for (int j = 0; j < nnIndxLU[n + 1]; ++j) {  // for i's jth neighbor
-      int jj = nnIndx[nnIndxLU[i] + j];          // index of i's jth neighbor
-      left -= u[jj] * B_mat[jj];
-      right -= v[jj] * B_mat[jj];
+      const int ij = nnIndxLU[i] + j;  // sparse address of i's jth neighbor
+      int       jj = nnIndx[nnIndxLU[i] + j];  // index of i's jth neighbor
+      left -= u[jj] * B_mat[ij];
+      right -= v[jj] * B_mat[ij];
     }
     results[i] = left * right / F_mat[i];
   }
   return std::accumulate(std::begin(results), std::end(results), 0.0);
 }
 
-Eigen::MatrixXd SeqNNGP::MAPPredict(const double* Xstar, const int nstar,
-                                    const int dstar) {
-  assert(dstar == d);
-  if (!regression_ready) {
-    regression_init();
-    regression_ready = true;
-  }
-  // [nstar, dstar] in python
-  const Eigen::Map<const MatrixXd> eigenXstar(Xstar, dstar, nstar);
-  MatrixXd                         eigenYstar = Eigen::MatrixXd::Zero(q, nstar);
+Eigen::MatrixXd SeqNNGP::get_regression_coeffs() { return regression_coeffs; }
 
-  for (int i = 0; i < nstar; ++i) {
-    eigenYstar.col(i) = regression_univariate(eigenXstar.col(i));
+Eigen::MatrixXd SeqNNGP::MAPPredict(
+    const Eigen::Ref<const Eigen::MatrixXd>& Xstar) {
+  const int nstar = Xstar.cols();
+  const int dstar = Xstar.rows();
+  assert(dstar == d);
+  // if (!regression_ready) {
+  //   regression_init();
+  //   regression_ready = true;
+  // }
+
+  // [q, nstar] in python
+  Eigen::MatrixXd eigenYstar = Eigen::MatrixXd::Zero(q, nstar);
+
+  for (int i = 0; i < nstar; i++) {
+    // TODO: currently computing dense cross covariance matrix. Should
+    // sparsify to save effort.
+    const Eigen::VectorXd crosscov = dense_crosscov(Xstar.col(i));
+    eigenYstar.col(i)              = regression_univariate(crosscov);
   }
+  // return Xstar;
+  // Eigen::VectorXd v(2);
+  // v(0) = d, v(1) = dstar;
+  // return v;
+  // return crosscov;
   return eigenYstar;
+  // return regression_coeffs;
+}
+
+Eigen::VectorXd SeqNNGP::dense_crosscov(
+    const Eigen::Ref<const Eigen::VectorXd>& newcoord) {
+  // assert(newcoord.size() == d);
+  Eigen::VectorXd crosscov = Eigen::VectorXd::Zero(n);
+  // #ifdef _OPENMP
+  // #pragma omp parallel for
+  // #endif
+  for (int i = 0; i < n; ++i) {
+    crosscov(i) = cm.cov(df(newcoord, coords.col(i)));
+  }
+  return crosscov;
 }
 
 Eigen::VectorXd SeqNNGP::regression_univariate(const Eigen::VectorXd& u) const {
   assert(u.size() == n);
 
   Eigen::VectorXd results = u(0) * regression_coeffs.col(0) / F_mat[0];
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
+  // #ifdef _OPENMP
+  // #pragma omp parallel for
+  // #endif
   for (int i = 1; i < n; ++i) {
     double left = u(i);
     for (int j = 0; j < nnIndxLU[n + 1]; ++j) {  // for i's jth neighbor
-      const int jj = nnIndx[nnIndxLU[i] + j];    // index of i's jth neighbor
-      left -= u(jj) * B_mat[jj];
+      const int jj = uIndx[uIndxLU[i] + j];      // index of i's jth neighbor
+      left -= u(jj) * B_mat[nnIndxLU[jj]];
+      // const int ij = nnIndxLU[i] + j;  // sparse address of i's jth neighbor
+      // const int jj = nnIndx[ij];       // index of i's jth neighbor
+      // left -= u(jj) * B_mat[ij];
     }
     results += left * regression_coeffs.col(i) / F_mat[i];
   }
@@ -304,16 +342,21 @@ Eigen::VectorXd SeqNNGP::regression_univariate(const Eigen::VectorXd& u) const {
 void SeqNNGP::regression_init() {
   regression_coeffs = y;
   for (int i = 1; i < n; ++i) {
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
+    // #ifdef _OPENMP
+    // #pragma omp parallel for
+    // #endif
     for (int j = 0; j < nnIndxLU[n + i]; ++j) {
-      const int jj = nnIndx[nnIndxLU[i] + j];  // index of i's jth neighbor
-      for (int k = 0; k < q; ++k) {
-        regression_coeffs(k, i) -= y(k, jj) * B_mat[jj];
-      }
+      const int jj = uIndx[uIndxLU[i] + j];  // index of i's jth neighbor
+      regression_coeffs.col(i) -= y.col(jj) * B_mat[nnIndxLU[jj]];
+      // const int ij = nnIndxLU[i] + j;  // sparse address of i's jth neighbor
+      // const int jj = nnIndx[ij];       // index of i's jth neighbor
+      // regression_coeffs.col(i) -= y.col(jj) * B_mat[ij];
+      // for (int k = 0; k < q; ++k) {
+      //   regression_coeffs(k, i) -= y(k, jj) * B_mat[jj];
+      // }
     }
   }
+  regression_ready = true;
 }
 
 // void SeqNNGP::updateTauSq() {

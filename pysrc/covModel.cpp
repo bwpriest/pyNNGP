@@ -1,6 +1,7 @@
 #include "covModel.h"
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 namespace py = pybind11;
 using namespace pybind11::literals;
@@ -34,6 +35,7 @@ void pyExportCovModel(py::module& m) {
       .def(py::init<int, double, double>(), "L"_a, "sigmaSqW"_a, "sigmaSqB"_a)
       .def_property_readonly("sigmaSqW", &NeuralNetworkCovModel::getSigmaSqW)
       .def_property_readonly("sigmaSqB", &NeuralNetworkCovModel::getSigmaSqB)
+      .def_property_readonly("Kxx", &NeuralNetworkCovModel::getKxx)
       .def("cov", &NeuralNetworkCovModel::cov);
 }
 }  // namespace pyNNGP

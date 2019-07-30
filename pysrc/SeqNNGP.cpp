@@ -1,4 +1,5 @@
 #include "SeqNNGP.h"
+#include <pybind11/eigen.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include "covModel.h"
@@ -22,6 +23,8 @@ void pyExportSeqNNGP(py::module& m) {
       .def(py::init(&MakeSeqNNGP))
       .def("sample", &SeqNNGP::sample)
       .def("updateW", &SeqNNGP::updateW)
+      .def("MAPPredict", &SeqNNGP::MAPPredict)
+      .def_property_readonly("coeffs", &SeqNNGP::get_regression_coeffs)
       .def_property_readonly(
           "nnIndx",
           [](SeqNNGP& s) -> py::array_t<int> {

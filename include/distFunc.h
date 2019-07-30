@@ -24,6 +24,7 @@ class DotProductDistFunc : public DistFunc {
  public:
   double operator()(const Eigen::VectorXd& a,
                     const Eigen::VectorXd& b) const override {
+    assert(a.size() == b.size());
     return a.dot(b);
   }
 };

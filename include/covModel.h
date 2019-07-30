@@ -46,12 +46,13 @@ class NeuralNetworkCovModel : public CovModel {
       : _L(L), _sigmaSqW(sigmaSqW), _sigmaSqB(sigmaSqB), Kxx(L) {
     Kxx[0] = get_K_0(1.0);  // Assuming all inputs normalized.
     for (int ell = 1; ell < _L; ++ell) {
-      Kxx[ell] = get_K_l(Kxx[ell - 1], ell);
+      Kxx[ell] = get_K_l(Kxx[ell - 1], ell - 1);
     }
   }
 
-  inline double getSigmaSqB() const { return _sigmaSqB; }
-  inline double getSigmaSqW() const { return _sigmaSqW; }
+  inline double              getSigmaSqB() const { return _sigmaSqB; }
+  inline double              getSigmaSqW() const { return _sigmaSqW; }
+  inline std::vector<double> getKxx() const { return Kxx; }
 
   /**
    * We assume that the hyperparameters are fixed for now.
@@ -66,9 +67,11 @@ class NeuralNetworkCovModel : public CovModel {
    * NEEDS REFACTOR: must get both x and x^\prime.
    */
   double cov(double x) const override {
-    double K = get_K_0(x);
-    for (int ell = 1; ell < _L; ++ell) { K = get_K_l(K, ell); }
-    return K;
+    // assert(x >= 0 && x <= 1);
+    if (x > 1.0) { x = 1.0; }
+    double Kuv = get_K_0(x);
+    for (int ell = 1; ell < _L; ++ell) { Kuv = get_K_l(Kuv, ell - 1); }
+    return Kuv;
   }
 
  protected:
@@ -83,8 +86,10 @@ class NeuralNetworkCovModel : public CovModel {
    * First part of Eq. (11) from [3].
    */
   inline double get_K_l(const double Kuv, const int ell) const {
-    double theta = get_theta(Kuv, ell);
-    return _sigmaSqB + (_sigmaSqW / (2 * M_PI)) * Kxx[ell] *
+    static const double sig_mod = _sigmaSqW / (2 * M_PI);
+    double              theta   = get_theta(Kuv, ell);
+    // double theta = 0;
+    return _sigmaSqB + sig_mod * Kxx[ell] *
                            (std::sin(theta) + (M_PI - theta) * std::cos(theta));
   }
 
