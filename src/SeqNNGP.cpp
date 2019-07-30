@@ -328,11 +328,11 @@ Eigen::VectorXd SeqNNGP::regression_univariate(const Eigen::VectorXd& u) const {
   for (int i = 1; i < n; ++i) {
     double left = u(i);
     for (int j = 0; j < nnIndxLU[n + 1]; ++j) {  // for i's jth neighbor
-      const int jj = uIndx[uIndxLU[i] + j];      // index of i's jth neighbor
-      left -= u(jj) * B_mat[nnIndxLU[jj]];
-      // const int ij = nnIndxLU[i] + j;  // sparse address of i's jth neighbor
-      // const int jj = nnIndx[ij];       // index of i's jth neighbor
-      // left -= u(jj) * B_mat[ij];
+      // const int jj = uIndx[uIndxLU[i] + j];      // index of i's jth neighbor
+      // left -= u(jj) * B_mat[nnIndxLU[jj]];
+      const int ij = nnIndxLU[i] + j;  // sparse address of i's jth neighbor
+      const int jj = nnIndx[ij];       // index of i's jth neighbor
+      left -= u(jj) * B_mat[ij];
     }
     results += left * regression_coeffs.col(i) / F_mat[i];
   }
@@ -346,11 +346,11 @@ void SeqNNGP::regression_init() {
     // #pragma omp parallel for
     // #endif
     for (int j = 0; j < nnIndxLU[n + i]; ++j) {
-      const int jj = uIndx[uIndxLU[i] + j];  // index of i's jth neighbor
-      regression_coeffs.col(i) -= y.col(jj) * B_mat[nnIndxLU[jj]];
-      // const int ij = nnIndxLU[i] + j;  // sparse address of i's jth neighbor
-      // const int jj = nnIndx[ij];       // index of i's jth neighbor
-      // regression_coeffs.col(i) -= y.col(jj) * B_mat[ij];
+      // const int jj = uIndx[uIndxLU[i] + j];  // index of i's jth neighbor
+      // regression_coeffs.col(i) -= y.col(jj) * B_mat[nnIndxLU[jj]];
+      const int ij = nnIndxLU[i] + j;  // sparse address of i's jth neighbor
+      const int jj = nnIndx[ij];       // index of i's jth neighbor
+      regression_coeffs.col(i) -= y.col(jj) * B_mat[ij];
       // for (int k = 0; k < q; ++k) {
       //   regression_coeffs(k, i) -= y(k, jj) * B_mat[jj];
       // }
