@@ -80,6 +80,11 @@ class SeqNNGP {
   const int m;      // Number of nearest neighbors
   const int nIndx;  // Total number of neighbors (DAG edges)
 
+  inline int get_num_samples() { return n; }
+  inline int get_num_neighbors() { return m; }
+  inline int get_sample_dim() { return d; }
+  inline int get_output_dim() { return q; }
+
   // Use existing memory here (allocated in python-layer)
   const Eigen::Map<const MatrixXd> y;       // [q, n] ([n, q] in python)
   const Eigen::Map<const MatrixXd> coords;  // [d, n]  ([n, d] in python)
@@ -130,10 +135,7 @@ class SeqNNGP {
    * Implements Eq. (5) from [2], where B_mat and F_mat correspond to A and D in
    * [2].
    */
-  //   int MAPPredict(const double* Xstar, const int nstar, const int dstar);
   Eigen::MatrixXd MAPPredict(const Eigen::Ref<const Eigen::MatrixXd>& Xstar);
-  //   Eigen::MatrixXd MAPPredict(const double* Xstar, const int nstar,
-  //                              const int dstar);
 
  protected:
   void mkUIndx();
@@ -151,6 +153,8 @@ class SeqNNGP {
   Eigen::VectorXd regression_univariate(const Eigen::VectorXd&) const;
 
   Eigen::VectorXd dense_crosscov(const Eigen::Ref<const Eigen::VectorXd>&);
+
+  Eigen::VectorXd sparse_crosscov(const Eigen::Ref<const Eigen::VectorXd>&);
 
   /**
    * Initialize regression_coeffs, a q x n matrix whose rows are of the form of

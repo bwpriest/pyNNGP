@@ -25,6 +25,10 @@ void pyExportSeqNNGP(py::module& m) {
       .def("updateW", &SeqNNGP::updateW)
       .def("MAPPredict", &SeqNNGP::MAPPredict)
       .def_property_readonly("coeffs", &SeqNNGP::get_regression_coeffs)
+      .def_property_readonly("n", &SeqNNGP::get_num_samples)
+      .def_property_readonly("m", &SeqNNGP::get_num_neighbors)
+      .def_property_readonly("d", &SeqNNGP::get_sample_dim)
+      .def_property_readonly("q", &SeqNNGP::get_output_dim)
       .def_property_readonly(
           "nnIndx",
           [](SeqNNGP& s) -> py::array_t<int> {

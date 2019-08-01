@@ -1,4 +1,5 @@
 #include "SeqNNGP.h"
+#include "FixedPriorityQueue.h"
 #include "covModel.h"
 #include "distFunc.h"
 #include "noiseModel.h"
@@ -15,6 +16,9 @@
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 using Eigen::VectorXi;
+
+// typedef pyNNGP::operand<int> nbr_t;
+// typedef pyNNGP::FixedPriorityQueue<int> fpq_t;
 
 namespace pyNNGP {
 SeqNNGP::SeqNNGP(const double* _y_targets, const double* _coords,
@@ -74,13 +78,13 @@ SeqNNGP::SeqNNGP(const double* _y_targets, const double* _coords,
   diff = end - start;
   std::cout << "duration = " << diff.count() << "s" << '\n';
 
-  std::cout << "initiating regression coefficients"
-            << "\n";
-  start = std::chrono::high_resolution_clock::now();
-  regression_init();
-  end  = std::chrono::high_resolution_clock::now();
-  diff = end - start;
-  std::cout << "duration = " << diff.count() << "s" << '\n';
+  // std::cout << "initiating regression coefficients"
+  //           << "\n";
+  // start = std::chrono::high_resolution_clock::now();
+  // regression_init();
+  // end  = std::chrono::high_resolution_clock::now();
+  // diff = end - start;
+  // std::cout << "duration = " << diff.count() << "s" << '\n';
 }
 
 void SeqNNGP::sample(int nSamples) {
@@ -169,6 +173,7 @@ void SeqNNGP::mkCD() {
 // Modified to ignore Matern covariance until I can figure out a way to get
 // a cyl_bessel_k compiled.
 void SeqNNGP::updateBF(double* B, double* F, CovModel& cm) {
+  regression_ready = false;
   int                  k, ell;
   Eigen::Map<VectorXd> eigenB(&B[0], nIndx);
   Eigen::Map<VectorXd> eigenF(&F[0], n);
@@ -282,33 +287,37 @@ Eigen::MatrixXd SeqNNGP::MAPPredict(
   const int nstar = Xstar.cols();
   const int dstar = Xstar.rows();
   assert(dstar == d);
-  // if (!regression_ready) {
-  //   regression_init();
-  //   regression_ready = true;
-  // }
+  if (!regression_ready) {
+    regression_init();
+    regression_ready = true;
+  }
 
   // [q, nstar] in python
   Eigen::MatrixXd eigenYstar = Eigen::MatrixXd::Zero(q, nstar);
 
   for (int i = 0; i < nstar; i++) {
     // TODO: currently computing dense cross covariance matrix. Should
-    // sparsify to save effort.
+    // sparsify to save effort. Seem to also be introducing bias when n >> m.
     const Eigen::VectorXd crosscov = dense_crosscov(Xstar.col(i));
     eigenYstar.col(i)              = regression_univariate(crosscov);
   }
-  // return Xstar;
-  // Eigen::VectorXd v(2);
-  // v(0) = d, v(1) = dstar;
-  // return v;
-  // return crosscov;
   return eigenYstar;
-  // return regression_coeffs;
 }
 
 Eigen::VectorXd SeqNNGP::dense_crosscov(
     const Eigen::Ref<const Eigen::VectorXd>& newcoord) {
-  // assert(newcoord.size() == d);
   Eigen::VectorXd crosscov = Eigen::VectorXd::Zero(n);
+  // #ifdef _OPENMP
+  // #pragma omp parallel for
+  // #endif
+  for (int i = 0; i < n; ++i) {
+    crosscov(i) = cm.cov(df(newcoord, coords.col(i)));
+  }
+  return crosscov;
+}
+Eigen::VectorXd SeqNNGP::sparse_crosscov(
+    const Eigen::Ref<const Eigen::VectorXd>& newcoord) {
+  Eigen::VectorXd crosscov = Eigen::VectorXd::Zero(m);
   // #ifdef _OPENMP
   // #pragma omp parallel for
   // #endif
@@ -322,19 +331,29 @@ Eigen::VectorXd SeqNNGP::regression_univariate(const Eigen::VectorXd& u) const {
   assert(u.size() == n);
 
   Eigen::VectorXd results = u(0) * regression_coeffs.col(0) / F_mat[0];
+  // std::cout << "results start at " << results << std::endl;
   // #ifdef _OPENMP
   // #pragma omp parallel for
   // #endif
   for (int i = 1; i < n; ++i) {
     double left = u(i);
-    for (int j = 0; j < nnIndxLU[n + 1]; ++j) {  // for i's jth neighbor
-      // const int jj = uIndx[uIndxLU[i] + j];      // index of i's jth neighbor
-      // left -= u(jj) * B_mat[nnIndxLU[jj]];
+    std::cout << "\tfor target " << i << " (" << left << ")" << std::endl;
+    for (int j = 0; j < nnIndxLU[n + i]; ++j) {  // for i's jth neighbor
       const int ij = nnIndxLU[i] + j;  // sparse address of i's jth neighbor
       const int jj = nnIndx[ij];       // index of i's jth neighbor
       left -= u(jj) * B_mat[ij];
+      // std::cout << "\t\t" << j << "u_" << jj << " = " << u(jj) << ", B_" <<
+      // ij
+      //           << " = " << B_mat[ij] << " yields " << (u(jj) * B_mat[ij])
+      //           << ", producing update " << left << std::endl;
     }
+    // std::cout << "\tresult is currently " << results << " and update is "
+    //           << (left * regression_coeffs.col(i) / F_mat[i]) << std::endl;
     results += left * regression_coeffs.col(i) / F_mat[i];
+    // std::cout << "\tresult is updated " << results << std::endl;
+    // std::cout << "\tupdates result by "
+    //           << left * regression_coeffs.col(i) / F_mat[i] << " to obtain "
+    //           << results << std::endl;
   }
   return results;
 }
@@ -345,15 +364,17 @@ void SeqNNGP::regression_init() {
     // #ifdef _OPENMP
     // #pragma omp parallel for
     // #endif
+    std::cout << "for column " << regression_coeffs.col(i) << std::endl;
     for (int j = 0; j < nnIndxLU[n + i]; ++j) {
-      // const int jj = uIndx[uIndxLU[i] + j];  // index of i's jth neighbor
-      // regression_coeffs.col(i) -= y.col(jj) * B_mat[nnIndxLU[jj]];
       const int ij = nnIndxLU[i] + j;  // sparse address of i's jth neighbor
       const int jj = nnIndx[ij];       // index of i's jth neighbor
       regression_coeffs.col(i) -= y.col(jj) * B_mat[ij];
-      // for (int k = 0; k < q; ++k) {
-      //   regression_coeffs(k, i) -= y(k, jj) * B_mat[jj];
-      // }
+      // std::cout << "\t" << j << "y_" << jj << " = " << y.col(jj) << ", B_" <<
+      // ij
+      //           << " = " << B_mat[ij] << " yields " << (y.col(jj) *
+      //           B_mat[ij])
+      //           << ", producing update " << regression_coeffs.col(i)
+      //           << std::endl;
     }
   }
   regression_ready = true;
