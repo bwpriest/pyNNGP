@@ -1,5 +1,4 @@
 #include "SeqNNGP.h"
-#include "FixedPriorityQueue.h"
 #include "covModel.h"
 #include "distFunc.h"
 #include "noiseModel.h"
@@ -16,9 +15,6 @@
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 using Eigen::VectorXi;
-
-// typedef pyNNGP::operand<int> nbr_t;
-// typedef pyNNGP::FixedPriorityQueue<int> fpq_t;
 
 namespace pyNNGP {
 SeqNNGP::SeqNNGP(const double* _y_targets, const double* _coords,
@@ -215,27 +211,29 @@ void SeqNNGP::updateBF(double* B, double* F, CovModel& cm) {
   }
 }
 
-void SeqNNGP::updateWparts(const int i, double& a, double& v, double& e) {
+void SeqNNGP::updateWparts(const int i, double& a, double& v, double& e) const {
   if (uIndxLU[n + i] > 0) {  // is i a neighbor for anybody
     for (int j = 0; j < uIndxLU[n + i]; j++) {
       // for each location neighboring i
-      double b  = 0.0;
-      int    jj = uIndx[uIndxLU[i] + j];            // index of i's jth neighbor
+      double    b  = 0.0;
+      const int ij = uIndxLU[i] + j;  // nIndx address of i's jth neighbor
+      const int jj = uIndx[ij];       // index of i's jth neighbor
       for (int k = 0; k < nnIndxLU[n + jj]; k++) {  // for each neighboring jj
-        int kk = nnIndx[nnIndxLU[jj] + k];  // index of jj's kth neighbor
-        if (kk != i) {                      // if the neighbor of jj is not i
+        const int kk = nnIndx[nnIndxLU[jj] + k];  // index of jj's kth neighbor
+        if (kk != i) {  // if the neighbor of jj is not i
           // covariance between jj and kk and the random effect of kk
           b += B_mat[nnIndxLU[jj] + k] * w_vec[kk];
         }
       }
-      a += B_mat[nnIndxLU[jj] + uiIndx[uIndxLU[i] + j]] * (w_vec[jj] - b) /
-           F_mat[jj];
-      v += pow(B_mat[nnIndxLU[jj] + uiIndx[uIndxLU[i] + j]], 2) / F_mat[jj];
+      a += B_mat[nnIndxLU[jj] + uiIndx[ij]] * (w_vec[jj] - b) / F_mat[jj];
+      v += pow(B_mat[nnIndxLU[jj] + uiIndx[ij]], 2) / F_mat[jj];
     }
   }
 
   for (int j = 0; j < nnIndxLU[n + i]; j++) {
-    e += B_mat[nnIndxLU[i] + j] * w_vec[nnIndx[nnIndxLU[i] + j]];
+    const int ij = nnIndxLU[i] + j;
+    const int jj = nnIndx[ij];
+    e += B_mat[ij] * w_vec[jj];
   }
 }
 
@@ -250,10 +248,118 @@ void SeqNNGP::updateW() {
                      // be fixed.
     double mu  = y(0, i) * nm.invTauSq(i) + e / F_mat[i] + a;
     double var = 1.0 / (nm.invTauSq(i) + 1.0 / F_mat[i] + v);
-
+    // std::cout << "posterior mean for observation " << i << " : " << mu
+    //           << "\n\tposterior var : " << var << std::endl;
     std::normal_distribution<> norm{mu * var, std::sqrt(var)};
     w_vec[i] = norm(gen);
   }
+}
+
+void SeqNNGP::predictYstarPartsSupport(const nbr_vec_t& crosscov, double& a,
+                                       double& v, double& e) const {
+  const int i(crosscov[0].obj);  // newcoord is the ith observation
+  if (uIndxLU[n + i] > 0) {      // is i a neighbor for anybody
+    for (int j = 0; j < uIndxLU[n + i]; j++) {
+      // for each location neighboring i
+      double b  = 0.0;
+      int    ij = uIndxLU[i] + j;  // nIndx address of i's jth neighbor
+      int    jj = uIndx[ij];       // index of i's jth neighbor
+      for (int k = 0; k < nnIndxLU[n + jj]; k++) {  // for each neighboring jj
+        int kk = nnIndx[nnIndxLU[jj] + k];  // index of jj's kth neighbor
+        if (kk != i) {                      // if the neighbor of jj is not i
+          // covariance between jj and kk and the random effect of kk
+          b += B_mat[nnIndxLU[jj] + k] * y(0, kk);
+        }
+      }
+      a += B_mat[nnIndxLU[jj] + uiIndx[ij]] * (y(0, jj) - b) / F_mat[jj];
+      v += pow(B_mat[nnIndxLU[jj] + uiIndx[ij]], 2) / F_mat[jj];
+    }
+  }
+
+  for (int j = 0; j < nnIndxLU[n + i]; j++) {
+    const int ij = nnIndxLU[i] + j;
+    const int jj = nnIndx[ij];
+    e += B_mat[ij] * y(0, jj);
+  }
+}
+
+void SeqNNGP::predictYstarPartsInterpolation(const nbr_vec_t& crosscov_vec,
+                                             double& a, double& v,
+                                             double& e) const {
+  std::map<int, double> crosscov_map;
+  std::vector<double>   crosscovs(crosscov_vec.size());
+  for (int i = 0; i < crosscov_vec.size(); ++i) {
+    crosscovs[i]                      = cm.cov(crosscov_vec[i].val);
+    crosscov_map[crosscov_vec[i].obj] = crosscovs[i];
+  }
+  for (int idx = 0; idx < crosscov_vec.size(); ++idx) {
+    const int i = crosscov_vec[idx].obj;  // index of idxth covariate.
+    for (int j = 0; j < uIndxLU[n + i]; j++) {
+      // for each location neighboring i
+      double    b  = 0.0;
+      double    g  = 0.0;
+      const int ij = uIndxLU[i] + j;  // nIndx address of i's jth neighbor
+      const int jj = uIndx[ij];       // index of i's jth neighbor
+      for (int k = 0; k < nnIndxLU[n + jj]; k++) {  // for each neighboring jj
+        int kk = nnIndx[nnIndxLU[jj] + k];  // index of jj's kth neighbor
+        if (kk != i) {                      // if the neighbor of jj is not i
+          // covariance between jj and kk and the random effect of kk
+          b += B_mat[nnIndxLU[jj] + k] * y(0, kk);
+          g +=
+              B_mat[nnIndxLU[jj] + k] * get_with_default(crosscov_map, kk, 0.0);
+        }
+      }
+      const double h = get_with_default(crosscov_map, jj, 0.0);
+      a += (h - g) * (y(0, jj) - b) / F_mat[jj];
+      v += pow(h, 2) / F_mat[jj];
+    }
+  }
+
+  // for (int idx = 0; idx < crosscov_vec.size(); idx++) {
+  //   const int i = crosscov_vec[idx].obj;  // index of ith covariate
+  //   e += crosscovs[idx] * y(0, i);
+  // }
+}
+
+Eigen::MatrixXd SeqNNGP::predict(
+    const Eigen::Ref<const Eigen::MatrixXd>& Xstar) const {
+  const int nstar = Xstar.cols();
+  const int dstar = Xstar.rows();
+  assert(dstar == d);
+
+  Eigen::MatrixXd eigenYstar = Eigen::MatrixXd::Zero(1, nstar);
+  for (int i = 0; i < nstar; i++) {
+    // std::cout << "For observation " << i << std::endl;
+    const fpq_t     crosscovQ    = sparse_crosscov(Xstar.col(i));
+    const nbr_vec_t crosscov_vec = crosscovQ.get_pairs();
+    if (crosscov_vec[0].val == 0) {
+      const int idx = crosscov_vec[0].obj;
+      double    a   = 0.0;
+      double    v   = 0.0;
+      double    e   = 0.0;
+      predictYstarPartsSupport(crosscov_vec, a, v, e);
+      assert(q == 1);  // If q != 1 we should not be here. This is klugy and
+                       // must be fixed.
+      double mu        = y(0, idx) * nm.invTauSq(idx) + e / F_mat[idx] + a;
+      double var       = 1.0 / (nm.invTauSq(idx) + 1.0 / F_mat[idx] + v);
+      eigenYstar(0, i) = mu * var;
+    } else {
+      double a = 0.0;
+      double v = 0.0;
+      double e = 0.0;
+      predictYstarPartsInterpolation(crosscov_vec, a, v, e);
+      // should not be using "i" here, as it has no meaning. Will cause
+      // arbitrary errors under heteroscedastic noise.
+      double mu  = y(0, i) * nm.invTauSq(i) + e / F_mat[i] + a;
+      double var = 1.0 / (nm.invTauSq(i) + 1.0 / F_mat[i] + v);
+      // double mu  = a;
+      // double var = 1.0 / (nm.invTauSq(i) + v);
+      std::cout << "gets here with mu = " << mu << ", var = " << var
+                << std::endl;
+      eigenYstar(0, i) = mu * var;
+    }
+  }
+  return eigenYstar;
 }
 
 double SeqNNGP::quadratic_form(const std::vector<double>& u,
@@ -298,62 +404,67 @@ Eigen::MatrixXd SeqNNGP::MAPPredict(
   for (int i = 0; i < nstar; i++) {
     // TODO: currently computing dense cross covariance matrix. Should
     // sparsify to save effort. Seem to also be introducing bias when n >> m.
-    const Eigen::VectorXd crosscov = dense_crosscov(Xstar.col(i));
-    eigenYstar.col(i)              = regression_univariate(crosscov);
+    // const Eigen::VectorXd crosscov = dense_crosscov(Xstar.col(i));
+    const fpq_t crosscov = sparse_crosscov(Xstar.col(i));
+    eigenYstar.col(i)    = regression_univariate(crosscov);
   }
   return eigenYstar;
 }
 
-Eigen::VectorXd SeqNNGP::dense_crosscov(
-    const Eigen::Ref<const Eigen::VectorXd>& newcoord) {
-  Eigen::VectorXd crosscov = Eigen::VectorXd::Zero(n);
+// Eigen::VectorXd SeqNNGP::dense_crosscov(
+//     const Eigen::Ref<const Eigen::VectorXd>& newcoord) const {
+//   Eigen::VectorXd crosscov = Eigen::VectorXd::Zero(n);
+//   // #ifdef _OPENMP
+//   // #pragma omp parallel for
+//   // #endif
+//   for (int i = 0; i < n; ++i) {
+//     crosscov(i) = cm.cov(df(newcoord, coords.col(i)));
+//   }
+//   return crosscov;
+// }
+
+fpq_t SeqNNGP::sparse_crosscov(
+    const Eigen::Ref<const Eigen::VectorXd>& newcoord) const {
   // #ifdef _OPENMP
   // #pragma omp parallel for
   // #endif
-  for (int i = 0; i < n; ++i) {
-    crosscov(i) = cm.cov(df(newcoord, coords.col(i)));
-  }
-  return crosscov;
-}
-Eigen::VectorXd SeqNNGP::sparse_crosscov(
-    const Eigen::Ref<const Eigen::VectorXd>& newcoord) {
-  Eigen::VectorXd crosscov = Eigen::VectorXd::Zero(m);
-  // #ifdef _OPENMP
-  // #pragma omp parallel for
-  // #endif
-  for (int i = 0; i < n; ++i) {
-    crosscov(i) = cm.cov(df(newcoord, coords.col(i)));
-  }
-  return crosscov;
+  fpq_t fpq(m);
+  for (int i = 0; i < n; ++i) { fpq.enqueue(i, df(newcoord, coords.col(i))); }
+  return fpq;
 }
 
-Eigen::VectorXd SeqNNGP::regression_univariate(const Eigen::VectorXd& u) const {
-  assert(u.size() == n);
+inline double SeqNNGP::sparse_kernel_apply(const nbr_map_t& nbr_map,
+                                           const int&       index) const {
+  double ret = get_with_default(nbr_map, index, -1.0);
+  if (ret == -1.0) {
+    return 0.0;
+  } else {
+    return cm.cov(ret);
+  }
+}
 
-  Eigen::VectorXd results = u(0) * regression_coeffs.col(0) / F_mat[0];
-  // std::cout << "results start at " << results << std::endl;
+// Eigen::VectorXd SeqNNGP::regression_univariate(const Eigen::VectorXd& u)
+// const {
+Eigen::VectorXd SeqNNGP::regression_univariate(const fpq_t& crosscov) const {
+  const nbr_map_t crosscov_map = crosscov.get_map();
+  const nbr_vec_t crosscov_vec = crosscov.get_pairs();
+  assert(crosscov_map.size() == m);
+
+  Eigen::VectorXd results = Eigen::VectorXd::Zero(q);
   // #ifdef _OPENMP
   // #pragma omp parallel for
   // #endif
-  for (int i = 1; i < n; ++i) {
-    double left = u(i);
-    std::cout << "\tfor target " << i << " (" << left << ")" << std::endl;
-    for (int j = 0; j < nnIndxLU[n + i]; ++j) {  // for i's jth neighbor
-      const int ij = nnIndxLU[i] + j;  // sparse address of i's jth neighbor
-      const int jj = nnIndx[ij];       // index of i's jth neighbor
-      left -= u(jj) * B_mat[ij];
-      // std::cout << "\t\t" << j << "u_" << jj << " = " << u(jj) << ", B_" <<
-      // ij
-      //           << " = " << B_mat[ij] << " yields " << (u(jj) * B_mat[ij])
-      //           << ", producing update " << left << std::endl;
+  for (int i = 0; i < crosscov.size(); ++i) {
+    // double left = u(i);
+    const int    idx  = crosscov_vec[i].obj;  // index of ith covariate
+    const double dist = crosscov_vec[i].val;  // distance to ith covariate
+    double       left = (dist == 0.0) ? 1.0 : cm.cov(dist);
+    for (int j = 0; j < nnIndxLU[n + idx]; ++j) {  // for i's jth neighbor
+      const int ij = nnIndxLU[idx] + j;  // sparse address of idx's jth neighbor
+      const int jj = nnIndx[ij];         // index of idx's jth neighbor
+      left -= sparse_kernel_apply(crosscov_map, jj) * B_mat[ij];
     }
-    // std::cout << "\tresult is currently " << results << " and update is "
-    //           << (left * regression_coeffs.col(i) / F_mat[i]) << std::endl;
-    results += left * regression_coeffs.col(i) / F_mat[i];
-    // std::cout << "\tresult is updated " << results << std::endl;
-    // std::cout << "\tupdates result by "
-    //           << left * regression_coeffs.col(i) / F_mat[i] << " to obtain "
-    //           << results << std::endl;
+    results += left * regression_coeffs.col(idx) / F_mat[idx];
   }
   return results;
 }
@@ -364,17 +475,11 @@ void SeqNNGP::regression_init() {
     // #ifdef _OPENMP
     // #pragma omp parallel for
     // #endif
-    std::cout << "for column " << regression_coeffs.col(i) << std::endl;
+    // std::cout << "for column " << regression_coeffs.col(i) << std::endl;
     for (int j = 0; j < nnIndxLU[n + i]; ++j) {
       const int ij = nnIndxLU[i] + j;  // sparse address of i's jth neighbor
       const int jj = nnIndx[ij];       // index of i's jth neighbor
       regression_coeffs.col(i) -= y.col(jj) * B_mat[ij];
-      // std::cout << "\t" << j << "y_" << jj << " = " << y.col(jj) << ", B_" <<
-      // ij
-      //           << " = " << B_mat[ij] << " yields " << (y.col(jj) *
-      //           B_mat[ij])
-      //           << ", producing update " << regression_coeffs.col(i)
-      //           << std::endl;
     }
   }
   regression_ready = true;
@@ -388,8 +493,8 @@ void SeqNNGP::regression_init() {
 //
 // // Ought to work to get a single sample of w/y for new points.  Note, this
 // version doesn't
-// // Parallelize over samples.  Could probably parallelize over points though?
-// (But don't
+// // Parallelize over samples.  Could probably parallelize over points
+// though? (But don't
 // // get to reuse distance measurements efficiently that way...)
 // void SeqNNGP::predict(const double* _X0, const double* _coords0, const int*
 // _nnIndx0, int q,
@@ -405,9 +510,11 @@ void SeqNNGP::regression_init() {
 //     VectorXd c(m);
 //     for(int i=0; i<q; i++) {
 //         for(int k=0; k<m; k++) {
-//             // double d = dist2(coords.col(nnIndx0[k+q*i]), coords0.col(i));
+//             // double d = dist2(coords.col(nnIndx0[k+q*i]),
+//             coords0.col(i));
 //             //???? and below? double d = dist2(coords.col(nnIndx0[i+q*k]),
-//             coords0.col(i)); c[k] = cm.cov(d); for(int ell=0; ell<m; ell++) {
+//             coords0.col(i)); c[k] = cm.cov(d); for(int ell=0; ell<m; ell++)
+//             {
 //                 d = dist2(coords.col(nnIndx0[i+q*k]), coords.col(i+q*ell));
 //                 C(ell,k) = cm.cov(d);
 //             }

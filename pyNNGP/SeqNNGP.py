@@ -88,18 +88,24 @@ class SeqNNGP:
     def updateTauSq(self):
         self._SeqNNGP.updateTauSq()
 
+    def predict(self, Xstar):
+        return self._SeqNNGP.predict(Xstar)
+
     def MAPPredict(self, Xstar):
-        dstar, nstar = Xstar.shape
-        assert dstar == self._SeqNNGP.d
-        # nstar, dstar = Xstar.shape
-        # Xstar = np.reshape(Xstar, (dstar, nstar))
-        # Xstar = np.ascontiguousarray(np.atleast_2d(Xstar))
-        if self.normalize:
-            Xstar = sk_normalize(Xstar, axis=0, norm="l2")
-        if nstar == 1:
-            Xstar = np.ascontiguousarray(np.reshape(Xstar, (dstar, 1)))
-        # return self._SeqNNGP.MAPPredict(Xstar.ctypes.data, nstar, dstar), Xstar
-        return self._SeqNNGP.MAPPredict(Xstar), Xstar
+        return self._SeqNNGP.MAPPredict(Xstar)
+
+    # def MAPPredict(self, Xstar):
+    #     dstar, nstar = Xstar.shape
+    #     assert dstar == self._SeqNNGP.d
+    #     # nstar, dstar = Xstar.shape
+    #     # Xstar = np.reshape(Xstar, (dstar, nstar))
+    #     # Xstar = np.ascontiguousarray(np.atleast_2d(Xstar))
+    #     if self.normalize:
+    #         Xstar = sk_normalize(Xstar, axis=0, norm="l2")
+    #     if nstar == 1:
+    #         Xstar = np.ascontiguousarray(np.reshape(Xstar, (dstar, 1)))
+    #     # return self._SeqNNGP.MAPPredict(Xstar.ctypes.data, nstar, dstar), Xstar
+    #     return self._SeqNNGP.MAPPredict(Xstar), Xstar
 
     @property
     def n(self):

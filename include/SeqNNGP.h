@@ -1,7 +1,10 @@
 #ifndef NNGP_SeqNNGP_h
 #define NNGP_SeqNNGP_h
 
+#include "FixedPriorityQueue.h"
+
 #include <Eigen/Dense>
+#include <map>
 #include <random>
 #include <vector>
 
@@ -18,6 +21,12 @@ using Eigen::VectorXd;
  * (https://arxiv.org/abs/1702.00434)
  */
 namespace pyNNGP {
+
+typedef pyNNGP::operand<int>            nbr_t;
+typedef pyNNGP::FixedPriorityQueue<int> fpq_t;
+typedef std::map<int, double>           nbr_map_t;
+typedef std::vector<nbr_t>              nbr_vec_t;
+
 class CovModel;
 class IsometricCovModel;
 class NoiseModel;
@@ -125,8 +134,8 @@ class SeqNNGP {
 
   Eigen::MatrixXd get_regression_coeffs();
 
-  void predict(const double* coords, const int* nnIndx0, int q, double* w0,
-               double* y0);
+  //   Eigen::MatrixXd predict() const;
+  Eigen::MatrixXd predict(const Eigen::Ref<const Eigen::MatrixXd>& Xstar) const;
 
   /**
    * Produce maximium a posteriori (MAP) estimate for each set of input
@@ -141,7 +150,13 @@ class SeqNNGP {
   void mkUIndx();
   void mkUIIndx();
   void mkCD();
-  void updateWparts(const int i, double& a, double& v, double& e);
+  void updateWparts(const int, double&, double&, double&) const;
+  void predictYstarPartsSupport(const nbr_vec_t&, double&, double&,
+                                double&) const;
+  void predictYstarPartsInterpolation(const nbr_vec_t&, double&, double&,
+                                      double&) const;
+
+  inline double sparse_kernel_apply(const nbr_map_t&, const int&) const;
 
   /**
    * Compute a quadratic form u^T C^{-1} v in terms of B_mat and F_mat.
@@ -150,11 +165,12 @@ class SeqNNGP {
   double quadratic_form(const std::vector<double>&,
                         const std::vector<double>&) const;
 
-  Eigen::VectorXd regression_univariate(const Eigen::VectorXd&) const;
+  //   Eigen::VectorXd regression_univariate(const Eigen::VectorXd&) const;
+  Eigen::VectorXd regression_univariate(const fpq_t&) const;
+  Eigen::VectorXd dense_crosscov(
+      const Eigen::Ref<const Eigen::VectorXd>&) const;
 
-  Eigen::VectorXd dense_crosscov(const Eigen::Ref<const Eigen::VectorXd>&);
-
-  Eigen::VectorXd sparse_crosscov(const Eigen::Ref<const Eigen::VectorXd>&);
+  fpq_t sparse_crosscov(const Eigen::Ref<const Eigen::VectorXd>&) const;
 
   /**
    * Initialize regression_coeffs, a q x n matrix whose rows are of the form of
