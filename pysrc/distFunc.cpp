@@ -8,7 +8,8 @@ using namespace pybind11::literals;
 
 namespace pyNNGP {
 void pyExportDistFunc(py::module& m) {
-  py::class_<DistFunc>(m, "DistFunc");
+  py::class_<DistFunc>(m, "DistFunc")
+      .def_readonly("identity", &DistFunc::identity);
 
   py::class_<EuclideanDistFunc, DistFunc>(m, "Euclidean")
       .def(py::init<>())

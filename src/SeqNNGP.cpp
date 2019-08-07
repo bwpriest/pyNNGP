@@ -203,10 +203,10 @@ void SeqNNGP::updateBF(double* B, double* F, CovModel& cm) {
       // Might be good to figure out how to use solveInPlace here.
       auto Blocal = eigenB.segment(nnIndxLU[i], nnIndxLU[n + i]);
       Blocal      = eigenC_cov.llt().solve(eigenc_crosscov);
-      eigenF[i]   = cm.cov(0.0) - Blocal.dot(eigenc_crosscov);
+      eigenF[i]   = cm.cov(df.identity) - Blocal.dot(eigenc_crosscov);
     } else {
       B[i] = 0;
-      F[i] = cm.cov(0.0);
+      F[i] = cm.cov(df.identity);
       // F[i] = 1.0;
     }
   }
@@ -294,7 +294,7 @@ void SeqNNGP::predictYstarPartsInterpolation(const nbr_vec_t& crosscov_vec,
   for (int i = 0; i < mstar; ++i) {
     nbrs[i]          = crosscov_vec[i].obj;
     eigencrosscov(i) = cm.cov(crosscov_vec[i].val);
-    eigenCov(i, i)   = cm.cov(0.0);
+    eigenCov(i, i)   = cm.cov(df.identity);
     // eigenCov(i, i) = 1.0;
     for (int j = 0; j < mstar; ++j) {
       eigenCov(i, j) = cm.cov(df(coords.col(nbrs[i]), coords.col(nbrs[j])));
@@ -303,7 +303,7 @@ void SeqNNGP::predictYstarPartsInterpolation(const nbr_vec_t& crosscov_vec,
   }
 
   const Eigen::VectorXd Blocal = eigenCov.llt().solve(eigencrosscov);
-  Finv = 1.0 / (cm.cov(0.0) - Blocal.dot(eigencrosscov));
+  Finv = 1.0 / (cm.cov(df.identity) - Blocal.dot(eigencrosscov));
   // Finv = 1.0 / (1.0 - Blocal.dot(eigencrosscov));
 
   for (int i = 0; i < mstar; i++) {
@@ -482,7 +482,7 @@ Eigen::VectorXd SeqNNGP::regression_univariate(const fpq_t& crosscov) const {
     // double left = u(i);
     const int    idx  = crosscov_vec[i].obj;  // index of ith covariate
     const double dist = crosscov_vec[i].val;  // distance to ith covariate
-    double       left = (dist == 0.0) ? 1.0 : cm.cov(dist);
+    double       left = (dist == df.identity) ? 1.0 : cm.cov(dist);
     for (int j = 0; j < nnIndxLU[n + idx]; ++j) {  // for i's jth neighbor
       const int ij = nnIndxLU[idx] + j;  // sparse address of idx's jth neighbor
       const int jj = nnIndx[ij];         // index of idx's jth neighbor
