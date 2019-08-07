@@ -135,7 +135,9 @@ class SeqNNGP {
   Eigen::MatrixXd get_regression_coeffs();
 
   //   Eigen::MatrixXd predict() const;
-  Eigen::MatrixXd predict(const Eigen::Ref<const Eigen::MatrixXd>& Xstar) const;
+  Eigen::MatrixXd predict(const Eigen::Ref<const Eigen::MatrixXd>& Xstar,
+                          const int nSamples, const int epochSize,
+                          const int burnin);
 
   /**
    * Produce maximium a posteriori (MAP) estimate for each set of input
@@ -146,6 +148,13 @@ class SeqNNGP {
    */
   Eigen::MatrixXd MAPPredict(const Eigen::Ref<const Eigen::MatrixXd>& Xstar);
 
+  /**
+   * Compute a quadratic form u^T C^{-1} v in terms of B_mat and F_mat.
+   * Implements Eq. (5) from [2].
+   */
+  double quadratic_form(const Eigen::Ref<const Eigen::VectorXd>&,
+                        const Eigen::Ref<const Eigen::VectorXd>&) const;
+
  protected:
   void mkUIndx();
   void mkUIIndx();
@@ -153,17 +162,11 @@ class SeqNNGP {
   void updateWparts(const int, double&, double&, double&) const;
   void predictYstarPartsSupport(const nbr_vec_t&, double&, double&,
                                 double&) const;
-  void predictYstarPartsInterpolation(const nbr_vec_t&, double&, double&,
-                                      double&) const;
+  void predictYstarPartsInterpolation(const nbr_vec_t&, double&, double&);
+  void sampleYstar(double&, double&, const double, const double, const int,
+                   const int, const int);
 
   inline double sparse_kernel_apply(const nbr_map_t&, const int&) const;
-
-  /**
-   * Compute a quadratic form u^T C^{-1} v in terms of B_mat and F_mat.
-   * Implements Eq. (5) from [2].
-   */
-  double quadratic_form(const std::vector<double>&,
-                        const std::vector<double>&) const;
 
   //   Eigen::VectorXd regression_univariate(const Eigen::VectorXd&) const;
   Eigen::VectorXd regression_univariate(const fpq_t&) const;

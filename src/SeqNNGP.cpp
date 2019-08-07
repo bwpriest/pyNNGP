@@ -207,6 +207,7 @@ void SeqNNGP::updateBF(double* B, double* F, CovModel& cm) {
     } else {
       B[i] = 0;
       F[i] = cm.cov(0.0);
+      // F[i] = 1.0;
     }
   }
 }
@@ -284,45 +285,36 @@ void SeqNNGP::predictYstarPartsSupport(const nbr_vec_t& crosscov, double& a,
 }
 
 void SeqNNGP::predictYstarPartsInterpolation(const nbr_vec_t& crosscov_vec,
-                                             double& a, double& v,
-                                             double& e) const {
-  std::map<int, double> crosscov_map;
-  std::vector<double>   crosscovs(crosscov_vec.size());
-  for (int i = 0; i < crosscov_vec.size(); ++i) {
-    crosscovs[i]                      = cm.cov(crosscov_vec[i].val);
-    crosscov_map[crosscov_vec[i].obj] = crosscovs[i];
-  }
-  for (int idx = 0; idx < crosscov_vec.size(); ++idx) {
-    const int i = crosscov_vec[idx].obj;  // index of idxth covariate.
-    for (int j = 0; j < uIndxLU[n + i]; j++) {
-      // for each location neighboring i
-      double    b  = 0.0;
-      double    g  = 0.0;
-      const int ij = uIndxLU[i] + j;  // nIndx address of i's jth neighbor
-      const int jj = uIndx[ij];       // index of i's jth neighbor
-      for (int k = 0; k < nnIndxLU[n + jj]; k++) {  // for each neighboring jj
-        int kk = nnIndx[nnIndxLU[jj] + k];  // index of jj's kth neighbor
-        if (kk != i) {                      // if the neighbor of jj is not i
-          // covariance between jj and kk and the random effect of kk
-          b += B_mat[nnIndxLU[jj] + k] * y(0, kk);
-          g +=
-              B_mat[nnIndxLU[jj] + k] * get_with_default(crosscov_map, kk, 0.0);
-        }
-      }
-      const double h = get_with_default(crosscov_map, jj, 0.0);
-      a += (h - g) * (y(0, jj) - b) / F_mat[jj];
-      v += pow(h, 2) / F_mat[jj];
+                                             double& e, double& Finv) {
+  const int        mstar         = crosscov_vec.size();
+  Eigen::VectorXd  eigencrosscov = Eigen::VectorXd::Zero(mstar);
+  Eigen::MatrixXd  eigenCov      = Eigen::MatrixXd::Zero(mstar, mstar);
+  std::vector<int> nbrs(mstar);
+
+  for (int i = 0; i < mstar; ++i) {
+    nbrs[i]          = crosscov_vec[i].obj;
+    eigencrosscov(i) = cm.cov(crosscov_vec[i].val);
+    eigenCov(i, i)   = cm.cov(0.0);
+    // eigenCov(i, i) = 1.0;
+    for (int j = 0; j < mstar; ++j) {
+      eigenCov(i, j) = cm.cov(df(coords.col(nbrs[i]), coords.col(nbrs[j])));
+      eigenCov(j, i) = eigenCov(j, i);
     }
   }
 
-  // for (int idx = 0; idx < crosscov_vec.size(); idx++) {
-  //   const int i = crosscov_vec[idx].obj;  // index of ith covariate
-  //   e += crosscovs[idx] * y(0, i);
-  // }
+  const Eigen::VectorXd Blocal = eigenCov.llt().solve(eigencrosscov);
+  Finv = 1.0 / (cm.cov(0.0) - Blocal.dot(eigencrosscov));
+  // Finv = 1.0 / (1.0 - Blocal.dot(eigencrosscov));
+
+  for (int i = 0; i < mstar; i++) {
+    const int idx = nbrs[i];  // index of ith covariate
+    e += Blocal(i) * w_vec[idx];
+  }
 }
 
-Eigen::MatrixXd SeqNNGP::predict(
-    const Eigen::Ref<const Eigen::MatrixXd>& Xstar) const {
+Eigen::MatrixXd SeqNNGP::predict(const Eigen::Ref<const Eigen::MatrixXd>& Xstar,
+                                 const int nSamples, const int epochSize,
+                                 const int burnin) {
   const int nstar = Xstar.cols();
   const int dstar = Xstar.rows();
   assert(dstar == d);
@@ -343,27 +335,59 @@ Eigen::MatrixXd SeqNNGP::predict(
       double mu        = y(0, idx) * nm.invTauSq(idx) + e / F_mat[idx] + a;
       double var       = 1.0 / (nm.invTauSq(idx) + 1.0 / F_mat[idx] + v);
       eigenYstar(0, i) = mu * var;
+      // eigenYstar(0, i) = w_vec[i];
     } else {
-      double a = 0.0;
-      double v = 0.0;
-      double e = 0.0;
-      predictYstarPartsInterpolation(crosscov_vec, a, v, e);
-      // should not be using "i" here, as it has no meaning. Will cause
-      // arbitrary errors under heteroscedastic noise.
-      double mu  = y(0, i) * nm.invTauSq(i) + e / F_mat[i] + a;
-      double var = 1.0 / (nm.invTauSq(i) + 1.0 / F_mat[i] + v);
-      // double mu  = a;
-      // double var = 1.0 / (nm.invTauSq(i) + v);
-      std::cout << "gets here with mu = " << mu << ", var = " << var
-                << std::endl;
-      eigenYstar(0, i) = mu * var;
+      double e    = 0.0;
+      double Finv = 0.0;
+      predictYstarPartsInterpolation(crosscov_vec, e, Finv);
+
+      // get mean y and w values from neighbors
+      double yt = 0.0;
+      double wt = 0.0;
+      for (int i = 0; i < crosscov_vec.size(); ++i) {
+        const int idx = crosscov_vec[i].obj;
+        yt += y(0, idx);
+        wt += w_vec[idx];
+      }
+      yt /= crosscov_vec.size();
+      wt /= crosscov_vec.size();
+      sampleYstar(wt, yt, e, Finv, nSamples, epochSize, burnin);
+      eigenYstar(0, i) = wt;
     }
   }
   return eigenYstar;
 }
 
-double SeqNNGP::quadratic_form(const std::vector<double>& u,
-                               const std::vector<double>& v) const {
+void SeqNNGP::sampleYstar(double& wt, double& yt, const double e,
+                          const double Finv, const int nSamples,
+                          const int epochSize, const int burnin) {
+  // should not be using "0" here, as it has no meaning. Will cause
+  // arbitrary errors under heteroscedastic noise.
+  const double Dt = nm.invTauSq(0);
+
+  // Will aggregate evenly-spaced samples and take the mean.
+  double wt0 = 0.0;
+  double yt0 = 0.0;
+
+  for (int i = 0; i < burnin + nSamples * epochSize; ++i) {
+    double                     mu  = Dt * yt + Finv * e;
+    double                     var = 1.0 / (Dt + Finv);
+    std::normal_distribution<> y_norm{wt, std::sqrt(1.0 / Dt)};
+    yt = y_norm(gen);
+    std::normal_distribution<> w_norm{mu * var, std::sqrt(var)};
+    wt = w_norm(gen);
+    if (i > burnin && i % epochSize == 0) {
+      wt0 += wt;
+      yt0 += yt;
+    }
+  }
+  wt = wt0 / nSamples;
+  yt = yt0 / nSamples;
+}
+
+double SeqNNGP::quadratic_form(
+    const Eigen::Ref<const Eigen::VectorXd>& u,
+    const Eigen::Ref<const Eigen::VectorXd>& v) const {
   assert(u.size() == n);
   assert(v.size() == n);
 
@@ -377,7 +401,7 @@ double SeqNNGP::quadratic_form(const std::vector<double>& u,
     double right = v[i];
     for (int j = 0; j < nnIndxLU[n + 1]; ++j) {  // for i's jth neighbor
       const int ij = nnIndxLU[i] + j;  // sparse address of i's jth neighbor
-      int       jj = nnIndx[nnIndxLU[i] + j];  // index of i's jth neighbor
+      const int jj = nnIndx[ij];       // index of i's jth neighbor
       left -= u[jj] * B_mat[ij];
       right -= v[jj] * B_mat[ij];
     }

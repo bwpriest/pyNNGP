@@ -88,11 +88,33 @@ class SeqNNGP:
     def updateTauSq(self):
         self._SeqNNGP.updateTauSq()
 
-    def predict(self, Xstar):
-        return self._SeqNNGP.predict(Xstar)
+    def predict(self, Xstar, N=10, epoch=50, burnin=100):
+        """Sample N functions from NNGP and evaluate at Xstar points.
+
+        Parameters
+        ----------
+        Xstar : Array-like, shape = (nstar_samples, n_features)
+            The coordinate tuples corresponding to the observed targets.
+        N : int (default 100)
+            Number of samples to return
+        """
+        return self._SeqNNGP.predict(Xstar, N, epoch, burnin)
 
     def MAPPredict(self, Xstar):
         return self._SeqNNGP.MAPPredict(Xstar)
+
+    def quadratic_form(self, u, v):
+        """Compute quadratic form u^T C^{-1} v.
+
+        Parameters
+        ----------
+        u : Array-like, shape = (n_samples,)
+            Left vector multiplicand
+        v : Array-like, shape = (n_samples,)
+            Right vector multiplicand
+        """
+        assert u.shape == v.shape == (self._SeqNNGP.n,)
+        return self._SeqNNGP.quadratic_form(u, v)
 
     # def MAPPredict(self, Xstar):
     #     dstar, nstar = Xstar.shape
