@@ -2,7 +2,7 @@
 #define FixedPriorityQueue_h
 // #pragma once
 
-// #include "DistFunc.h"
+#include "distFunc.h"
 
 #include <algorithm>
 #include <iostream>
@@ -65,15 +65,18 @@ struct sorted_vector {
   typedef operand<T>                         op;
   typedef std::vector<op>                    vec;
   typedef typename std::vector<op>::iterator iterator;
-  // CompFunc &                                 cf;
-  const int m_capacity;
-  iterator  begin() { return std::begin(V); }
-  iterator  end() { return std::end(V); }
+  const CompFunc &                           cf;
+  const int                                  m_capacity;
+  iterator                                   begin() { return std::begin(V); }
+  iterator                                   end() { return std::end(V); }
 
   // sorted_vector(const std::size_t k, const CompFunc &_cf) : cf(_cf), k(k) {
   //   V.reserve(k);
   // }
-  sorted_vector(const std::size_t k) : m_capacity(k) { V.reserve(m_capacity); }
+  sorted_vector(const std::size_t k, const CompFunc &_cf)
+      : m_capacity(k), cf(_cf) {
+    V.reserve(m_capacity);
+  }
 
   const op &operator[](const int idx) const {
     if (idx < V.size() && idx >= 0) {
@@ -90,8 +93,8 @@ struct sorted_vector {
     }
     op back = V.back();
     if (V.size() < m_capacity) {
-      // if (cf(t.val, back.val) {
-      if (back.val < t.val) {
+      if (cf(back.val, t.val)) {
+        // if (back.val < t.val) {
         V.push_back(t);
       } else {
         if (V.size() == 1) {
@@ -102,8 +105,8 @@ struct sorted_vector {
         V.push_back(back);
       }
     } else {
-      // if (cf(t.val, bacl.val)) { shift(t, capacity); }
-      if (t.val < back.val) { shift(t, m_capacity); }
+      if (cf(t.val, back.val)) { shift(t, m_capacity); }
+      // if (t.val < back.val) { shift(t, m_capacity); }
     }
   }
 
@@ -119,7 +122,8 @@ struct sorted_vector {
     for (int j = size - 1; j > 0; --j) {
       op temp = V[j];
       // if (cf(t.val, temp.val)) {
-      if (V[j - 1].val < t.val && t.val < V[j]) {
+      // if (V[j - 1].val < t.val && t.val < V[j]) {
+      if (cf(V[j - 1].val, t.val) && cf(t.val, V[j].val)) {
         V[j] = t;
         break;
       } else {
@@ -148,7 +152,8 @@ class FixedPriorityQueue {
  public:
   // FixedPriorityQueue(const std::size_t k, const CompFunc &_cf)
   //     : m_k(k), cf(_cf) {}
-  FixedPriorityQueue(const std::size_t k) : m_svec(k) {}
+  FixedPriorityQueue(const std::size_t k, const CompFunc &_cf)
+      : m_svec(k, _cf) {}
 
   // Assignment operators
   FixedPriorityQueue(const FixedPriorityQueue &) = default;
@@ -157,8 +162,6 @@ class FixedPriorityQueue {
   FixedPriorityQueue &operator=(const FixedPriorityQueue &) = default;
 
   ~FixedPriorityQueue() {}
-
-  // CompFunc &cf;
 
   const oper &operator[](const int idx) const { return m_svec[idx]; }
 

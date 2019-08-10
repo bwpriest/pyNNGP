@@ -22,8 +22,10 @@ namespace pyNNGP {
 LinearNNGP::LinearNNGP(const double* _y, const double* _X,
                        const double* _coords, const int _d, const int _q,
                        const int _p, const int _n, const int _m, CovModel& _cm,
-                       DistFunc& _df, NoiseModel& _nm)
-    : SeqNNGP(_y, _coords, _d, _q, _n, _m, _cm, _df, _nm), p(_p), Xt(_X, p, n) {
+                       DistFunc& _df, CompFunc& _cf, NoiseModel& _nm)
+    : SeqNNGP(_y, _coords, _d, _q, _n, _m, _cm, _df, _cf, _nm),
+      p(_p),
+      Xt(_X, p, n) {
   // build the neighbor index
   nm.setX(Xt);
 

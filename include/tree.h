@@ -22,8 +22,8 @@ void get_nn(Node *Tree, const int index, const int dim, const int d,
 void getNNIndx(int i, int m, int &iNNIndx, int &iNN);
 
 void mkNNIndxTree0(const int n, const int m, const int d, const DistFunc &df,
-                   const MatrixXd &coords, int *nnIndx, double *nnDist,
-                   int *nnIndxLU);
+                   const CompFunc &cf, const MatrixXd &coords, int *nnIndx,
+                   double *nnDist, int *nnIndxLU);
 }  // namespace pyNNGP
 
 #endif

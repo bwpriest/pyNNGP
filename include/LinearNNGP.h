@@ -22,7 +22,8 @@ class LinearNNGP : public SeqNNGP {
  public:
   LinearNNGP(const double* _y, const double* _X, const double* _coords,
              const int _d, const int _q, const int _p, const int _n,
-             const int _m, CovModel& _cm, DistFunc& _df, NoiseModel& _nm);
+             const int _m, CovModel& _cm, DistFunc& _df, CompFunc& _cf,
+             NoiseModel& _nm);
 
   const int p;  // Number of indicators per input location
 

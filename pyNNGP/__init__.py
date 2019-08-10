@@ -9,3 +9,4 @@ from ._pyNNGP import (
     ConstHeterogeneousNoiseModel,
 )
 from ._pyNNGP import Euclidean, DotProduct
+from ._pyNNGP import Lesser, Greater

@@ -20,4 +20,16 @@ void pyExportDistFunc(py::module& m) {
       .def("__call__", [](const DotProductDistFunc& f, const Eigen::VectorXd& a,
                           const Eigen::VectorXd& b) { return f(a, b); });
 }
+void pyExportCompFunc(py::module& m) {
+  py::class_<CompFunc>(m, "CompFunc");
+
+  py::class_<LessCompFunc, CompFunc>(m, "Lesser")
+      .def(py::init<>())
+      .def("__call__", [](const LessCompFunc& f, const double a,
+                          const double b) { return f(a, b); });
+  py::class_<GreaterCompFunc, CompFunc>(m, "Greater")
+      .def(py::init<>())
+      .def("__call__", [](const GreaterCompFunc& f, const double a,
+                          const double b) { return f(a, b); });
+}
 }  // namespace pyNNGP

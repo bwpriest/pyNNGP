@@ -8,6 +8,7 @@ void pyExportLinearNNGP(py::module& m);
 void pyExportCovModel(py::module& m);
 void pyExportNoiseModel(py::module& m);
 void pyExportDistFunc(py::module& m);
+void pyExportCompFunc(py::module& m);
 
 PYBIND11_MODULE(_pyNNGP, m) {
   pyExportSeqNNGP(m);
@@ -15,5 +16,6 @@ PYBIND11_MODULE(_pyNNGP, m) {
   pyExportCovModel(m);
   pyExportNoiseModel(m);
   pyExportDistFunc(m);
+  pyExportCompFunc(m);
 }
 }  // namespace pyNNGP

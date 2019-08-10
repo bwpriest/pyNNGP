@@ -36,8 +36,7 @@ class SeqNNGP {
  public:
   SeqNNGP(const double* _y_targets, const double* _coords, const int _d_idim,
           const int _q_ldim, const int _n_samples, const int _m_nns,
-          CovModel& _cm, DistFunc& _df, NoiseModel& _nm);
-  //   CovModel& _cm, DistFunc& _df, CompFunc& _cf, NoiseModel& _nm);
+          CovModel& _cm, DistFunc& _df, CompFunc& _cf, NoiseModel& _nm);
 
   /** Nearest neighbors ranges
    * Lower part holds starting index (in nnIndx) for each node
@@ -103,7 +102,7 @@ class SeqNNGP {
   CovModel&   cm;  // Model for GP covariances
   NoiseModel& nm;  // Model for additional measurement noise
   DistFunc&   df;  // Model for distance function
-  //   CompFunc&   cf;  // Comparison function (lesser or greater?)
+  CompFunc&   cf;  // Comparison function (lesser or greater?)
 
   std::random_device rd;
   std::mt19937       gen;

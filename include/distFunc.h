@@ -44,16 +44,14 @@ class CompFunc {
 
 class LessCompFunc : public CompFunc {
  public:
-  template <typename T>
-  bool operator()(const double &lhs, const double &rhs) const {
+  bool operator()(const double &lhs, const double &rhs) const override {
     return lhs < rhs;
   }
 };
 
 class GreaterCompFunc : public CompFunc {
  public:
-  template <typename T>
-  bool operator()(const double &lhs, const double &rhs) const {
+  bool operator()(const double &lhs, const double &rhs) const override {
     return lhs > rhs;
   }
 };

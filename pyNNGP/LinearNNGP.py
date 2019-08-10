@@ -42,6 +42,7 @@ class LinearNNGP:
         nNeighbors,
         covModel,
         distFunc,
+        compFunc,
         noiseModel,
         normalize=False,
     ):
@@ -52,6 +53,7 @@ class LinearNNGP:
         self.nNeighbors = nNeighbors
         self.covModel = covModel
         self.distFunc = distFunc
+        self.compFunc = compFunc
         self.noiseModel = noiseModel
 
         if normalize == True:
@@ -78,6 +80,7 @@ class LinearNNGP:
             self.nNeighbors,  # maximum # of nearest neighbors for conditioning
             self.covModel,  # covariance function to be used
             self.distFunc,  # distance/similarity function to be used
+            self.compFunc,  # lesser or greater?
             self.noiseModel,  # noise prior
         )
 

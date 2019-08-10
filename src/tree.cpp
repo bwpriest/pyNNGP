@@ -45,15 +45,15 @@ Node* miniInsert(Node* Tree, const MatrixXd& coords, const int index,
 }
 
 void get_nn(Node* Tree, const int index, const int dim, const int d,
-            const DistFunc& df, const MatrixXd& coords, double* nnDist,
-            int* nnIndx, int iNNIndx, int iNN) {
+            const DistFunc& df, const CompFunc& cf, const MatrixXd& coords,
+            double* nnDist, int* nnIndx, int iNNIndx, int iNN) {
   // input: Tree, index, d, coords
   // output: nnDist, nnIndx
   if (!Tree) return;
 
   double disttemp = df(coords.col(index), coords.col(Tree->index));
 
-  if (index != Tree->index && disttemp < nnDist[iNNIndx + iNN - 1]) {
+  if (index != Tree->index && cf(disttemp, nnDist[iNNIndx + iNN - 1])) {
     nnDist[iNNIndx + iNN - 1] = disttemp;
     nnIndx[iNNIndx + iNN - 1] = Tree->index;
     rsort_with_index(&nnDist[iNNIndx], &nnIndx[iNNIndx], iNN);
@@ -62,19 +62,26 @@ void get_nn(Node* Tree, const int index, const int dim, const int d,
   Node* temp1 = Tree->left;
   Node* temp2 = Tree->right;
 
-  if (coords(dim, index) > coords(dim, Tree->index)) std::swap(temp1, temp2);
-  get_nn(temp1, index, (dim + 1) % d, d, df, coords, nnDist, nnIndx, iNNIndx,
-         iNN);
+  if (coords(dim, index) > coords(dim, Tree->index)) {
+    std::swap(temp1, temp2);
+  }
+  get_nn(temp1, index, (dim + 1) % d, d, df, cf, coords, nnDist, nnIndx,
+         iNNIndx, iNN);
+  // if (cf(nnDist[iNNIndx + iNN - 1],
+  //        fabs(coords(dim, Tree->index) - coords(dim, index)))) {
+  //   return;
+  // }
   if (fabs(coords(dim, Tree->index) - coords(dim, index)) >
-      nnDist[iNNIndx + iNN - 1])
+      nnDist[iNNIndx + iNN - 1]) {
     return;
-  get_nn(temp2, index, (dim + 1) % d, d, df, coords, nnDist, nnIndx, iNNIndx,
-         iNN);
+  }
+  get_nn(temp2, index, (dim + 1) % d, d, df, cf, coords, nnDist, nnIndx,
+         iNNIndx, iNN);
 }
 
 void mkNNIndxTree0(const int n, const int m, const int d, const DistFunc& df,
-                   const MatrixXd& coords, int* nnIndx, double* nnDist,
-                   int* nnIndxLU) {
+                   const CompFunc& cf, const MatrixXd& coords, int* nnIndx,
+                   double* nnDist, int* nnIndxLU) {
   int    i, iNNIndx, iNN;
   double distance;
   int    nIndx = ((1 + m) * m) / 2 + (n - m - 1) * m;
@@ -97,7 +104,7 @@ void mkNNIndxTree0(const int n, const int m, const int d, const DistFunc& df,
       for (int j = time_through; j < i; j++) {
         getNNIndx(i, m, iNNIndx, iNN);
         distance = df(coords.col(i), coords.col(j));
-        if (distance < nnDist[iNNIndx + iNN - 1]) {
+        if (cf(distance, nnDist[iNNIndx + iNN - 1])) {
           nnDist[iNNIndx + iNN - 1] = distance;
           nnIndx[iNNIndx + iNN - 1] = j;
           rsort_with_index(&nnDist[iNNIndx], &nnIndx[iNNIndx], iNN);
@@ -109,7 +116,7 @@ void mkNNIndxTree0(const int n, const int m, const int d, const DistFunc& df,
 #endif
         for (int j = time_through; j < time_through + BUCKETSIZE; j++) {
           getNNIndx(j, m, iNNIndx, iNN);
-          get_nn(Tree, j, 0, d, df, coords, nnDist, nnIndx, iNNIndx, iNN);
+          get_nn(Tree, j, 0, d, df, cf, coords, nnDist, nnIndx, iNNIndx, iNN);
         }
 
         for (int j = time_through; j < time_through + BUCKETSIZE; j++) {
@@ -124,7 +131,7 @@ void mkNNIndxTree0(const int n, const int m, const int d, const DistFunc& df,
 #endif
         for (int j = time_through; j < n; j++) {
           getNNIndx(j, m, iNNIndx, iNN);
-          get_nn(Tree, j, 0, d, df, coords, nnDist, nnIndx, iNNIndx, iNN);
+          get_nn(Tree, j, 0, d, df, cf, coords, nnDist, nnIndx, iNNIndx, iNN);
         }
       }
     } else {  // i==0

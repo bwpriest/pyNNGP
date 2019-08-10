@@ -20,7 +20,7 @@ using Eigen::VectorXi;
 namespace pyNNGP {
 SeqNNGP::SeqNNGP(const double* _y_targets, const double* _coords,
                  const int _d_idim, const int _q_ldim, const int _n_samples,
-                 const int _m_nns, CovModel& _cm, DistFunc& _df,
+                 const int _m_nns, CovModel& _cm, DistFunc& _df, CompFunc& _cf,
                  NoiseModel& _nm)
     : d(_d_idim),
       q(_q_ldim),
@@ -31,6 +31,7 @@ SeqNNGP::SeqNNGP(const double* _y_targets, const double* _coords,
       coords(_coords, d, n),  // n x d in python is d x n in Eigen
       cm(_cm),
       df(_df),
+      cf(_cf),
       nm(_nm),
       gen(rd()),
       regression_ready(false),
@@ -44,7 +45,7 @@ SeqNNGP::SeqNNGP(const double* _y_targets, const double* _coords,
 
   std::cout << "Finding neighbors" << '\n';
   auto start = std::chrono::high_resolution_clock::now();
-  mkNNIndxTree0(n, m, d, df, coords, &nnIndx[0], &nnDist[0], &nnIndxLU[0]);
+  mkNNIndxTree0(n, m, d, df, cf, coords, &nnIndx[0], &nnDist[0], &nnIndxLU[0]);
   auto end = std::chrono::high_resolution_clock::now();
 
   std::chrono::duration<double> diff = end - start;
@@ -439,7 +440,7 @@ fpq_t SeqNNGP::sparse_crosscov(
   // #ifdef _OPENMP
   // #pragma omp parallel for
   // #endif
-  fpq_t fpq(m);
+  fpq_t fpq(m, cf);
   for (int i = 0; i < n; ++i) {
     const double dist = df(newcoord, coords.col(i));
     fpq.enqueue(i, dist);
