@@ -248,33 +248,6 @@ void SeqNNGP::updateW() {
   }
 }
 
-void SeqNNGP::predictYstarPartsSupport(const int s_idx, double& a, double& v,
-                                       double& e) const {
-  if (uIndxLU[n + s_idx] > 0) {  // is i a neighbor for anybody
-    for (int j = 0; j < uIndxLU[n + s_idx]; j++) {
-      // for each location neighboring i
-      double b  = 0.0;
-      int    ij = uIndxLU[s_idx] + j;  // nIndx address of i's jth neighbor
-      int    jj = uIndx[ij];           // index of i's jth neighbor
-      for (int k = 0; k < nnIndxLU[n + jj]; k++) {  // for each neighboring jj
-        int kk = nnIndx[nnIndxLU[jj] + k];  // index of jj's kth neighbor
-        if (kk != s_idx) {                  // if the neighbor of jj is not i
-          // covariance between jj and kk and the random effect of kk
-          b += B_mat[nnIndxLU[jj] + k] * y(0, kk);
-        }
-      }
-      a += B_mat[nnIndxLU[jj] + uiIndx[ij]] * (y(0, jj) - b) / F_mat[jj];
-      v += pow(B_mat[nnIndxLU[jj] + uiIndx[ij]], 2) / F_mat[jj];
-    }
-  }
-
-  for (int j = 0; j < nnIndxLU[n + s_idx]; j++) {
-    const int ij = nnIndxLU[s_idx] + j;
-    const int jj = nnIndx[ij];
-    e += B_mat[ij] * y(0, jj);
-  }
-}
-
 void SeqNNGP::predictYstarPartsInterpolation(const fpq_t& crosscov, double& e,
                                              double& Finv) {
   const int        mstar         = crosscov.size();
@@ -306,6 +279,13 @@ void SeqNNGP::predictYstarPartsInterpolation(const fpq_t& crosscov, double& e,
 Eigen::MatrixXd SeqNNGP::predict(const Eigen::Ref<const Eigen::MatrixXd>& Xstar,
                                  const int nSamples, const int epochSize,
                                  const int burnin) {
+  return predict_target(Xstar, y.row(0), nSamples, epochSize, burnin);
+}
+
+Eigen::MatrixXd SeqNNGP::predict_target(
+    const Eigen::Ref<const Eigen::MatrixXd>& Xstar,
+    const Eigen::Ref<const Eigen::VectorXd>& target, const int nSamples,
+    const int epochSize, const int burnin) {
   const int nstar = Xstar.cols();
   const int dstar = Xstar.rows();
   assert(dstar == d);
@@ -314,17 +294,8 @@ Eigen::MatrixXd SeqNNGP::predict(const Eigen::Ref<const Eigen::MatrixXd>& Xstar,
   for (int i = 0; i < nstar; i++) {
     const fpq_t crosscov = sparse_crosscov(Xstar.col(i));
     if (crosscov[0].val == 0) {
-      const int idx = crosscov[0].obj;
-      double    a   = 0.0;
-      double    v   = 0.0;
-      double    e   = 0.0;
-      predictYstarPartsSupport(crosscov[0].obj, a, v, e);
-      assert(q == 1);  // If q != 1 we should not be here. This is klugy and
-                       // must be fixed.
-      double mu        = y(0, idx) * nm.invTauSq(idx) + e / F_mat[idx] + a;
-      double var       = 1.0 / (nm.invTauSq(idx) + 1.0 / F_mat[idx] + v);
-      eigenYstar(0, i) = mu * var;
-      // eigenYstar(0, i) = w_vec[i];
+      const int idx    = crosscov[0].obj;
+      eigenYstar(0, i) = w_vec[idx];
     } else {
       double e    = 0.0;
       double Finv = 0.0;
@@ -334,7 +305,8 @@ Eigen::MatrixXd SeqNNGP::predict(const Eigen::Ref<const Eigen::MatrixXd>& Xstar,
       double wt = 0.0;
       for (int i = 0; i < crosscov.size(); ++i) {
         const int idx = crosscov[i].obj;
-        yt += y(0, idx);
+        // yt += y(0, idx);
+        yt += target(idx);
         wt += w_vec[idx];
       }
       yt /= crosscov.size();

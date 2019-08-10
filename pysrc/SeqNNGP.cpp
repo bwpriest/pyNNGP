@@ -10,7 +10,7 @@ namespace py = pybind11;
 
 namespace pyNNGP {
 static SeqNNGP* MakeSeqNNGP(size_t iy, size_t icoords, int d, int q, int n,
-                            int nNeighbors, CovModel& cm, DistFunc& df, 
+                            int nNeighbors, CovModel& cm, DistFunc& df,
                             CompFunc& cf, NoiseModel& nm) {
   const double* y      = reinterpret_cast<double*>(iy);
   const double* coords = reinterpret_cast<double*>(icoords);
@@ -24,6 +24,7 @@ void pyExportSeqNNGP(py::module& m) {
       .def("sample", &SeqNNGP::sample)
       .def("updateW", &SeqNNGP::updateW)
       .def("predict", &SeqNNGP::predict)
+      .def("predict_target", &SeqNNGP::predict_target)
       .def("quadratic_form", &SeqNNGP::quadratic_form)
       .def_property_readonly("coeffs", &SeqNNGP::get_regression_coeffs)
       .def_property_readonly("n", &SeqNNGP::get_num_samples)

@@ -141,6 +141,11 @@ class SeqNNGP {
                           const int nSamples, const int epochSize,
                           const int burnin);
 
+  Eigen::MatrixXd predict_target(
+      const Eigen::Ref<const Eigen::MatrixXd>& Xstar,
+      const Eigen::Ref<const Eigen::VectorXd>& target, const int nSamples,
+      const int epochSize, const int burnin);
+
   //   /**
   //    * Produce maximium a posteriori (MAP) estimate for each set of input
   //    * coordinates. Operates over the columns of Xstar, a [dstar, nstar]
@@ -165,7 +170,6 @@ class SeqNNGP {
   void mkUIIndx();
   void mkCD();
   void updateWparts(const int, double&, double&, double&) const;
-  void predictYstarPartsSupport(const int, double&, double&, double&) const;
   void predictYstarPartsInterpolation(const fpq_t&, double&, double&);
   void sampleYstar(double&, double&, const double, const double, const int,
                    const int, const int);

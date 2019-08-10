@@ -96,12 +96,29 @@ class SeqNNGP:
 
         Parameters
         ----------
-        Xstar : Array-like, shape = (nstar_samples, n_features)
+        Xstar : Array-like, shape = (n_features, nstar_samples)
             The coordinate tuples corresponding to the observed targets.
         N : int (default 100)
             Number of samples to return
         """
+        assert Xstar.shape[0] == self._SeqNNGP.d
         return self._SeqNNGP.predict(Xstar, N, epoch, burnin)
+
+    def predict_target(self, Xstar, target, N=10, epoch=50, burnin=100):
+        """Sample N functions from NNGP and evaluate at Xstar points.
+
+        Parameters
+        ----------
+        Xstar : Array-like, shape = (n_features, nstar_samples)
+            The coordinate tuples corresponding to the observed targets.
+        Xstar : Array-like, shape = (n_features)
+            The coordinate tuples corresponding to the observed targets.
+        N : int (default 100)
+            Number of samples to return
+        """
+        assert target.shape == (self._SeqNNGP.n,)
+        assert Xstar.shape[0] == self._SeqNNGP.d
+        return self._SeqNNGP.predict_target(Xstar, target, N, epoch, burnin)
 
     def MAPPredict(self, Xstar):
         return self._SeqNNGP.MAPPredict(Xstar)
@@ -118,19 +135,6 @@ class SeqNNGP:
         """
         assert u.shape == v.shape == (self._SeqNNGP.n,)
         return self._SeqNNGP.quadratic_form(u, v)
-
-    # def MAPPredict(self, Xstar):
-    #     dstar, nstar = Xstar.shape
-    #     assert dstar == self._SeqNNGP.d
-    #     # nstar, dstar = Xstar.shape
-    #     # Xstar = np.reshape(Xstar, (dstar, nstar))
-    #     # Xstar = np.ascontiguousarray(np.atleast_2d(Xstar))
-    #     if self.normalize:
-    #         Xstar = sk_normalize(Xstar, axis=0, norm="l2")
-    #     if nstar == 1:
-    #         Xstar = np.ascontiguousarray(np.reshape(Xstar, (dstar, 1)))
-    #     # return self._SeqNNGP.MAPPredict(Xstar.ctypes.data, nstar, dstar), Xstar
-    #     return self._SeqNNGP.MAPPredict(Xstar), Xstar
 
     @property
     def n(self):
