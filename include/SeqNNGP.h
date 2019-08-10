@@ -1,9 +1,8 @@
 #ifndef NNGP_SeqNNGP_h
 #define NNGP_SeqNNGP_h
 
-#include "FixedPriorityQueue.h"
-
 #include <Eigen/Dense>
+#include <functional>
 #include <map>
 #include <random>
 #include <vector>
@@ -22,20 +21,23 @@ using Eigen::VectorXd;
  */
 namespace pyNNGP {
 
-typedef pyNNGP::operand<int>            nbr_t;
-typedef pyNNGP::FixedPriorityQueue<int> fpq_t;
-typedef std::map<int, double>           nbr_map_t;
-typedef std::vector<nbr_t>              nbr_vec_t;
-
 class CovModel;
 class IsometricCovModel;
 class NoiseModel;
 class DistFunc;
+class CompFunc;
+
+template <typename T>
+class FixedPriorityQueue;
+
+typedef FixedPriorityQueue<int> fpq_t;
+
 class SeqNNGP {
  public:
   SeqNNGP(const double* _y_targets, const double* _coords, const int _d_idim,
           const int _q_ldim, const int _n_samples, const int _m_nns,
           CovModel& _cm, DistFunc& _df, NoiseModel& _nm);
+  //   CovModel& _cm, DistFunc& _df, CompFunc& _cf, NoiseModel& _nm);
 
   /** Nearest neighbors ranges
    * Lower part holds starting index (in nnIndx) for each node
@@ -101,6 +103,7 @@ class SeqNNGP {
   CovModel&   cm;  // Model for GP covariances
   NoiseModel& nm;  // Model for additional measurement noise
   DistFunc&   df;  // Model for distance function
+  //   CompFunc&   cf;  // Comparison function (lesser or greater?)
 
   std::random_device rd;
   std::mt19937       gen;
@@ -139,14 +142,17 @@ class SeqNNGP {
                           const int nSamples, const int epochSize,
                           const int burnin);
 
-  /**
-   * Produce maximium a posteriori (MAP) estimate for each set of input
-   * coordinates. Operates over the columns of Xstar, a [dstar, nstar] matrix
-   * representing nstar points of dstar coordinates. dstar must equal d.
-   * Implements Eq. (5) from [2], where B_mat and F_mat correspond to A and D in
-   * [2].
-   */
-  Eigen::MatrixXd MAPPredict(const Eigen::Ref<const Eigen::MatrixXd>& Xstar);
+  //   /**
+  //    * Produce maximium a posteriori (MAP) estimate for each set of input
+  //    * coordinates. Operates over the columns of Xstar, a [dstar, nstar]
+  //    matrix
+  //    * representing nstar points of dstar coordinates. dstar must equal d.
+  //    * Implements Eq. (5) from [2], where B_mat and F_mat correspond to A and
+  //    D in
+  //    * [2].
+  //    */
+  //   Eigen::MatrixXd MAPPredict(const Eigen::Ref<const Eigen::MatrixXd>&
+  //   Xstar);
 
   /**
    * Compute a quadratic form u^T C^{-1} v in terms of B_mat and F_mat.
@@ -160,16 +166,15 @@ class SeqNNGP {
   void mkUIIndx();
   void mkCD();
   void updateWparts(const int, double&, double&, double&) const;
-  void predictYstarPartsSupport(const nbr_vec_t&, double&, double&,
-                                double&) const;
-  void predictYstarPartsInterpolation(const nbr_vec_t&, double&, double&);
+  void predictYstarPartsSupport(const int, double&, double&, double&) const;
+  void predictYstarPartsInterpolation(const fpq_t&, double&, double&);
   void sampleYstar(double&, double&, const double, const double, const int,
                    const int, const int);
 
-  inline double sparse_kernel_apply(const nbr_map_t&, const int&) const;
+  //   inline double sparse_kernel_apply(const nbr_map_t&, const int&) const;
 
   //   Eigen::VectorXd regression_univariate(const Eigen::VectorXd&) const;
-  Eigen::VectorXd regression_univariate(const fpq_t&) const;
+  //   Eigen::VectorXd regression_univariate(const fpq_t&) const;
   Eigen::VectorXd dense_crosscov(
       const Eigen::Ref<const Eigen::VectorXd>&) const;
 

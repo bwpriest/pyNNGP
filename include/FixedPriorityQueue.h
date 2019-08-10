@@ -1,10 +1,15 @@
-#pragma once
+#ifndef FixedPriorityQueue_h
+#define FixedPriorityQueue_h
+// #pragma once
+
+// #include "DistFunc.h"
 
 #include <algorithm>
 #include <iostream>
 #include <map>
 #include <memory>
 #include <set>
+#include <stdexcept>
 #include <vector>
 
 namespace pyNNGP {
@@ -55,14 +60,95 @@ std::ostream &operator<<(std::ostream &os, const operand<T> &op) {
   return os;
 }
 
+template <typename T>
+struct sorted_vector {
+  typedef operand<T>                         op;
+  typedef std::vector<op>                    vec;
+  typedef typename std::vector<op>::iterator iterator;
+  // CompFunc &                                 cf;
+  const int m_capacity;
+  iterator  begin() { return std::begin(V); }
+  iterator  end() { return std::end(V); }
+
+  // sorted_vector(const std::size_t k, const CompFunc &_cf) : cf(_cf), k(k) {
+  //   V.reserve(k);
+  // }
+  sorted_vector(const std::size_t k) : m_capacity(k) { V.reserve(m_capacity); }
+
+  const op &operator[](const int idx) const {
+    if (idx < V.size() && idx >= 0) {
+      return V[idx];
+    } else {
+      throw std::out_of_range("Index out of range");
+    }
+  }
+
+  void insert(const op &t) {
+    if (V.size() == 0) {
+      V.push_back(t);
+      return;
+    }
+    op back = V.back();
+    if (V.size() < m_capacity) {
+      // if (cf(t.val, back.val) {
+      if (back.val < t.val) {
+        V.push_back(t);
+      } else {
+        if (V.size() == 1) {
+          V[0] = t;
+        } else {
+          shift(t, V.size());
+        }
+        V.push_back(back);
+      }
+    } else {
+      // if (cf(t.val, bacl.val)) { shift(t, capacity); }
+      if (t.val < back.val) { shift(t, m_capacity); }
+    }
+  }
+
+  std::size_t size() const { return V.size(); }
+
+  template <typename U>
+  friend std::ostream &operator<<(std::ostream &, const sorted_vector<U> &);
+
+ private:
+  vec V;
+
+  void shift(const op &t, const int size) {
+    for (int j = size - 1; j > 0; --j) {
+      op temp = V[j];
+      // if (cf(t.val, temp.val)) {
+      if (V[j - 1].val < t.val && t.val < V[j]) {
+        V[j] = t;
+        break;
+      } else {
+        V[j] = V[j - 1];
+      }
+      if (j == 1) { V[0] = t; }
+    }
+  }
+};
+
+template <typename T>
+std::ostream &operator<<(std::ostream &os, const sorted_vector<T> &svec) {
+  os << "\t";
+  for (int i = 0; i < svec.size(); ++i) {
+    os << svec[i] << "\n";
+    if (i < svec.size() - 1) { os << "\t"; }
+  }
+  return os;
+}
+
 template <typename OBJ>
 class FixedPriorityQueue {
-  typedef operand<OBJ>                oper;
-  typedef std::set<oper>              oper_set;
-  typedef typename oper_set::iterator oper_it;
+  typedef operand<OBJ>       oper;
+  typedef sorted_vector<OBJ> oper_svec;
 
  public:
-  FixedPriorityQueue(const std::size_t k) : m_k(k) {}
+  // FixedPriorityQueue(const std::size_t k, const CompFunc &_cf)
+  //     : m_k(k), cf(_cf) {}
+  FixedPriorityQueue(const std::size_t k) : m_svec(k) {}
 
   // Assignment operators
   FixedPriorityQueue(const FixedPriorityQueue &) = default;
@@ -72,127 +158,34 @@ class FixedPriorityQueue {
 
   ~FixedPriorityQueue() {}
 
+  // CompFunc &cf;
+
+  const oper &operator[](const int idx) const { return m_svec[idx]; }
+
   inline void enqueue(const OBJ &obj, const double val) {
-    if (val < 0) { return; }
     oper ins({obj, val});
-    if (m_set.size() < m_k) {
-      m_set.insert(ins);
-      return;
-    }
-    if (*std::prev(std::end(m_set)) > val) {
-      m_set.erase(std::prev(std::end(m_set)));
-      m_set.insert(ins);
-    }
+    m_svec.insert(ins);
   }
 
-  inline std::size_t size() const { return m_set.size(); }
-  inline std::size_t capacity() const { return m_set.m_k; }
-
-  inline std::vector<oper> get_pairs() const { return get_pairs(m_set.size()); }
-  inline std::vector<oper> get_pairs(int n) const {
-    if (n > m_set.size()) { n = m_set.size(); }
-    std::vector<oper> ret;
-    ret.reserve(n);
-    oper_it it(std::begin(m_set));
-    for (int i(0); i < n; ++i) {
-      ret.push_back(*it);
-      ++it;
-    }
-    return ret;
-  }
-
-  inline std::map<OBJ, double> get_map() const { return get_map(m_set.size()); }
-  inline std::map<OBJ, double> get_map(int n) const {
-    if (n > m_set.size()) { n = m_set.size(); }
-    std::map<OBJ, double> ret;
-    oper_it               it(std::begin(m_set));
-    for (int i(0); i < n; ++i) {
-      ret[it->obj] = it->val;
-      ++it;
-    }
-    return ret;
-  }
-
-  inline std::vector<OBJ> get_obj_vec() const {
-    return get_obj_vec(m_set.size());
-  }
-  inline std::vector<OBJ> get_obj_vec(int n) const {
-    if (n > m_set.size()) { n = m_set.size(); }
-    std::vector<OBJ> ret(n);
-    oper_it          it(std::begin(m_set));
-    for (int i(0); i < n; ++i) {
-      ret[i] = it->obj;
-      ++it;
-    }
-    return ret;
-  }
-
-  inline std::vector<double> get_val_vec() const {
-    return get_val_vec(m_set.size());
-  }
-  inline std::vector<double> get_val_vec(int n) const {
-    if (n > m_set.size()) { n = m_set.size(); }
-    std::vector<double> ret(n);
-    oper_it             it(std::begin(m_set));
-    for (int i(0); i < n; ++i) {
-      ret[i] = it->val;
-      ++it;
-    }
-    return ret;
-  }
-
-  inline std::vector<oper> get_pairs_from_set(std::set<OBJ> &objs) {
-    std::vector<oper> ret;
-    ret.reserve(objs.size());
-    for (const oper &elt : m_set) {
-      oper_it it(std::begin(objs));
-      oper_it end_it(std::end(objs));
-      while (it != end_it) {
-        if (*it == elt.obj) {
-          ret.push_back(elt);
-          objs.erase(it);
-          break;
-        } else {
-          ++it;
-        }
-      }
-    }
-    return ret;
-  }
-
-  inline double min_val() const { return std::prev(std::end(m_set))->val; }
-  inline double min_val(int offset) const {
-    return std::next(std::begin(m_set), offset - 1)->val;
-  }
-  inline double max_val() const { return std::begin(m_set)->val; }
-
-  inline oper min_element() const { return *std::prev(std::end(m_set)); }
-  inline oper min_element(int offset) const {
-    return *(std::next(std::begin(m_set), offset - 1));
-  }
-  inline oper   max_element() const { return *std::begin(m_set); }
-  inline double min() const { return min_element().val; }
-  inline double min(int offset) const { return min_element(offset).val; }
-  inline double max() const { return max_element().val; }
-  inline void   erase_max_element() { m_set.erase(std::begin(m_set)); }
-
-  //   inline auto begin() { return std::begin(m_set); }
-  //   inline auto end() { return std::end(m_set); }
-  //   inline auto cbegin() { return std::cbegin(m_set); }
-  //   inline auto cend() { return std::cend(m_set); }
+  inline std::size_t size() const { return m_svec.size(); }
+  inline std::size_t capacity() const { return m_svec.m_capacity; }
 
   template <typename T>
   friend std::ostream &operator<<(std::ostream &,
                                   const FixedPriorityQueue<T> &);
 
  private:
-  std::size_t m_k;
-  oper_set    m_set;
+  // std::size_t m_k;
+  oper_svec m_svec;
 };
 
 template <typename T>
 std::ostream &operator<<(std::ostream &os, const FixedPriorityQueue<T> &fpq) {
-  for (auto elem : fpq.m_set) { os << elem << std::endl; }
+  os << "\t";
+  for (int i = 0; i < fpq.size(); ++i) {
+    os << fpq[i] << "\n";
+    if (i < fpq.size() - 1) { os << "\t"; }
+  }
   return os;
 }
 
@@ -207,3 +200,4 @@ V get_with_default(const std::map<K, V> &mp, const K &key, const V &defval) {
 }
 
 }  // namespace pyNNGP
+#endif
