@@ -297,6 +297,9 @@ Eigen::MatrixXd SeqNNGP::predict_target(
   assert(dstar == d);
 
   Eigen::MatrixXd eigenYstar = Eigen::MatrixXd::Zero(1, nstar);
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
   for (int i = 0; i < nstar; i++) {
     const fpq_t crosscov = sparse_crosscov(Xstar.col(i));
     if (crosscov[0].val == 0) {
