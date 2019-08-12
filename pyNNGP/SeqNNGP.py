@@ -105,20 +105,37 @@ class SeqNNGP:
         return self._SeqNNGP.predict(Xstar, N, epoch, burnin)
 
     def predict_target(self, Xstar, target, N=10, epoch=50, burnin=100):
-        """Sample N functions from NNGP and evaluate at Xstar points.
+        """Sample N functions from NNGP and evaluate at Xstar points. Used when 
+        the model is untrained.
 
         Parameters
         ----------
         Xstar : Array-like, shape = (n_features, nstar_samples)
             The coordinate tuples corresponding to the observed targets.
-        Xstar : Array-like, shape = (n_features)
-            The coordinate tuples corresponding to the observed targets.
+        target : Array-like, shape = (n_features,)
+            The vector of regression targets.
         N : int (default 100)
             Number of samples to return
         """
         assert target.shape == (self._SeqNNGP.n,)
         assert Xstar.shape[0] == self._SeqNNGP.d
         return self._SeqNNGP.predict_target(Xstar, target, N, epoch, burnin)
+
+    def predict_targets(self, Xstar, targets, N=10, epoch=50, burnin=100):
+        """Sample N functions from NNGP and evaluate at Xstar points.
+
+        Parameters
+        ----------
+        Xstar : Array-like, shape = (n_features, nstar_samples)
+            The coordinate tuples corresponding to the observed targets.
+        targets : Array-like, shape = (n_samples, n_labels)
+            The Matrix of regression targets.
+        N : int (default 100)
+            Number of samples to return
+        """
+        assert targets.shape[0] == self._SeqNNGP.n
+        assert Xstar.shape[0] == self._SeqNNGP.d
+        return self._SeqNNGP.predict_targets(Xstar, targets, N, epoch, burnin)
 
     def MAPPredict(self, Xstar):
         return self._SeqNNGP.MAPPredict(Xstar)

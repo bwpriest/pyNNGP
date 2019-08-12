@@ -176,12 +176,18 @@ void SeqNNGP::updateBF(double* B, double* F, CovModel& cm) {
       // Construct C_cov and c_crosscov matrices that we'll Chosolve below
       // I think these are essentially the constituents of eq (3) of Datta++14
       // I.e., we're updating auto- and cross-covariances
+      // std::cout << "for index " << i << std::endl;
       for (k = 0; k < nnIndxLU[n + i]; k++) {
         // int i1 = nnIndx[nnIndxLU[i] + k];
         // get cross-covariance between i and its kth neighbor
-        c_crosscov[nnIndxLU[i] + k] = cm.cov(nnDist[nnIndxLU[i] + k]);
-        assert(nnDist[nnIndxLU[i] + k] ==
-               df(coords.col(i), coords.col(nnIndx[nnIndxLU[i] + k])));
+        const int ik = nnIndxLU[i] + k;
+        const int kk = nnIndx[ik];
+        // std::cout << "\tneighbor " << nnIndx[ik] << " dist : " << nnDist[ik]
+        //           << " (expected " << df(coords.col(i),
+        //           coords.col(nnIndx[ik]))
+        //           << ")" << std::endl;
+        c_crosscov[ik] = cm.cov(nnDist[ik]);
+        assert(nnDist[ik] == df(coords.col(i), coords.col(kk)));
         for (ell = 0; ell <= k; ell++) {
           // int i2 = nnIndx[nnIndxLU[i] + ell];
           // Get covariance between i's kth and (ell*m + k)th neighbor.
@@ -330,12 +336,80 @@ void SeqNNGP::sampleYstar(double& wt, double& yt, const double e,
   double yt0 = 0.0;
 
   for (int i = 0; i < burnin + nSamples * epochSize; ++i) {
+    std::normal_distribution<> y_norm{wt, std::sqrt(1.0 / Dt)};
+    yt                             = y_norm(gen);
     double                     mu  = Dt * yt + Finv * e;
     double                     var = 1.0 / (Dt + Finv);
-    std::normal_distribution<> y_norm{wt, std::sqrt(1.0 / Dt)};
-    yt = y_norm(gen);
     std::normal_distribution<> w_norm{mu * var, std::sqrt(var)};
     wt = w_norm(gen);
+    if (i > burnin && i % epochSize == 0) {
+      wt0 += wt;
+      yt0 += yt;
+    }
+  }
+  wt = wt0 / nSamples;
+  yt = yt0 / nSamples;
+}
+
+Eigen::MatrixXd SeqNNGP::predict_targets(
+    const Eigen::Ref<const Eigen::MatrixXd>& Xstar,
+    const Eigen::Ref<const Eigen::MatrixXd>& targets, const int nSamples,
+    const int epochSize, const int burnin) {
+  const int nstar = Xstar.cols();
+  const int dstar = Xstar.rows();
+  assert(dstar == d);
+  const int qprime = targets.cols();
+  const int nprime = targets.rows();
+  assert(nprime == n);
+
+  Eigen::MatrixXd eigenYstar = Eigen::MatrixXd::Zero(qprime, nstar);
+  for (int i = 0; i < nstar; i++) {
+    const fpq_t crosscov = sparse_crosscov(Xstar.col(i));
+    if (crosscov[0].val == 0) {
+      const int idx     = crosscov[0].obj;
+      eigenYstar.col(i) = targets.row(idx);
+    } else {
+      double e    = 0.0;
+      double Finv = 0.0;
+      predictYstarPartsInterpolation(crosscov, e, Finv);
+      // get mean y and w values from neighbors
+      Eigen::VectorXd yt = Eigen::VectorXd::Zero(qprime);
+      Eigen::VectorXd wt = Eigen::VectorXd::Zero(qprime);
+      for (int i = 0; i < crosscov.size(); ++i) {
+        const int idx = crosscov[i].obj;
+        yt += targets.row(idx);
+      }
+      yt /= crosscov.size();
+      sampleYstarVec(wt, yt, e, Finv, nSamples, epochSize, burnin);
+      eigenYstar.col(i) = wt;
+    }
+  }
+  return eigenYstar;
+}
+
+void SeqNNGP::sampleYstarVec(Eigen::VectorXd& wt, Eigen::VectorXd& yt,
+                             const double e, const double Finv,
+                             const int nSamples, const int epochSize,
+                             const int burnin) {
+  // should not be using "0" here, as it has no meaning. Will cause
+  // arbitrary errors under heteroscedastic noise.
+  const double Dt     = nm.invTauSq(0);
+  const int    qprime = wt.size();
+
+  // Will aggregate evenly-spaced samples and take the mean.
+  Eigen::VectorXd wt0 = Eigen::VectorXd::Zero(qprime);
+  Eigen::VectorXd yt0 = Eigen::VectorXd::Zero(qprime);
+
+  for (int i = 0; i < burnin + nSamples * epochSize; ++i) {
+    for (int j = 0; j < qprime; ++j) {
+      // Sample wt first, since it is not trained.
+      const double               mu  = Dt * yt(j) + Finv * e;
+      const double               var = 1.0 / (Dt + Finv);
+      std::normal_distribution<> w_norm{mu * var, std::sqrt(var)};
+      wt(j) = w_norm(gen);
+      std::normal_distribution<> y_norm{wt(j), std::sqrt(1.0 / Dt)};
+      yt(j) = y_norm(gen);
+    }
     if (i > burnin && i % epochSize == 0) {
       wt0 += wt;
       yt0 += yt;

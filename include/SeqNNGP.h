@@ -146,6 +146,11 @@ class SeqNNGP {
       const Eigen::Ref<const Eigen::VectorXd>& target, const int nSamples,
       const int epochSize, const int burnin);
 
+  Eigen::MatrixXd predict_targets(
+      const Eigen::Ref<const Eigen::MatrixXd>& Xstar,
+      const Eigen::Ref<const Eigen::MatrixXd>& targets, const int nSamples,
+      const int epochSize, const int burnin);
+
   //   /**
   //    * Produce maximium a posteriori (MAP) estimate for each set of input
   //    * coordinates. Operates over the columns of Xstar, a [dstar, nstar]
@@ -173,8 +178,11 @@ class SeqNNGP {
   void predictYstarPartsInterpolation(const fpq_t&, double&, double&);
   void sampleYstar(double&, double&, const double, const double, const int,
                    const int, const int);
-
-  //   inline double sparse_kernel_apply(const nbr_map_t&, const int&) const;
+  void sampleYstarVec(Eigen::VectorXd& wt, Eigen::VectorXd& yt, const double e,
+                      const double Finv, const int nSamples,
+                      const int epochSize, const int burnin);
+  //   inline double sparse_kernel_apply(const nbr_map_t&, const int&)
+  //   const;
 
   //   Eigen::VectorXd regression_univariate(const Eigen::VectorXd&) const;
   //   Eigen::VectorXd regression_univariate(const fpq_t&) const;

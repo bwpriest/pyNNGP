@@ -21,7 +21,9 @@ void pyExportDistFunc(py::module& m) {
                           const Eigen::VectorXd& b) { return f(a, b); });
 }
 void pyExportCompFunc(py::module& m) {
-  py::class_<CompFunc>(m, "CompFunc");
+  py::class_<CompFunc>(m, "CompFunc")
+      .def_readonly("identity", &CompFunc::extremum);
+  ;
 
   py::class_<LessCompFunc, CompFunc>(m, "Lesser")
       .def(py::init<>())

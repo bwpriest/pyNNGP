@@ -25,6 +25,7 @@ void pyExportSeqNNGP(py::module& m) {
       .def("updateW", &SeqNNGP::updateW)
       .def("predict", &SeqNNGP::predict)
       .def("predict_target", &SeqNNGP::predict_target)
+      .def("predict_targets", &SeqNNGP::predict_targets)
       .def("quadratic_form", &SeqNNGP::quadratic_form)
       .def_property_readonly("coeffs", &SeqNNGP::get_regression_coeffs)
       .def_property_readonly("n", &SeqNNGP::get_num_samples)

@@ -39,11 +39,15 @@ class DotProductDistFunc : public DistFunc {
 
 class CompFunc {
  public:
+  CompFunc(const double ex) : extremum(ex) {}
   virtual bool operator()(const double &lhs, const double &rhs) const = 0;
+
+  const double extremum;
 };
 
 class LessCompFunc : public CompFunc {
  public:
+  LessCompFunc() : CompFunc(std::numeric_limits<double>::infinity()) {}
   bool operator()(const double &lhs, const double &rhs) const override {
     return lhs < rhs;
   }
@@ -51,6 +55,8 @@ class LessCompFunc : public CompFunc {
 
 class GreaterCompFunc : public CompFunc {
  public:
+  GreaterCompFunc()
+      : CompFunc(-1.0 * std::numeric_limits<double>::infinity()) {}
   bool operator()(const double &lhs, const double &rhs) const override {
     return lhs > rhs;
   }

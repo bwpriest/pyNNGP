@@ -56,7 +56,7 @@ void get_nn(Node* Tree, const int index, const int dim, const int d,
   if (index != Tree->index && cf(disttemp, nnDist[iNNIndx + iNN - 1])) {
     nnDist[iNNIndx + iNN - 1] = disttemp;
     nnIndx[iNNIndx + iNN - 1] = Tree->index;
-    rsort_with_index(&nnDist[iNNIndx], &nnIndx[iNNIndx], iNN);
+    rsort_with_index(cf, &nnDist[iNNIndx], &nnIndx[iNNIndx], iNN);
   }
 
   Node* temp1 = Tree->left;
@@ -88,8 +88,9 @@ void mkNNIndxTree0(const int n, const int m, const int d, const DistFunc& df,
   // Results seem to depend on BUCKETSIZE, which seems weird...
   int BUCKETSIZE = 10;
 
-  std::fill(&nnDist[0], &nnDist[0] + nIndx,
-            std::numeric_limits<double>::infinity());
+  // std::fill(&nnDist[0], &nnDist[0] + nIndx,
+  //           std::numeric_limits<double>::infinity());
+  std::fill(&nnDist[0], &nnDist[0] + nIndx, cf.extremum);
 
   Node* Tree         = nullptr;
   int   time_through = -1;
@@ -107,7 +108,7 @@ void mkNNIndxTree0(const int n, const int m, const int d, const DistFunc& df,
         if (cf(distance, nnDist[iNNIndx + iNN - 1])) {
           nnDist[iNNIndx + iNN - 1] = distance;
           nnIndx[iNNIndx + iNN - 1] = j;
-          rsort_with_index(&nnDist[iNNIndx], &nnIndx[iNNIndx], iNN);
+          rsort_with_index(cf, &nnDist[iNNIndx], &nnIndx[iNNIndx], iNN);
         }
       }
       if (i % BUCKETSIZE == 0) {

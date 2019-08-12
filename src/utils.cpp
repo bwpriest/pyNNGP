@@ -49,11 +49,11 @@ void apply_permutation(std::vector<int>& p, Args*... args) {
   }
 }
 
-void rsort_with_index(double* x, int* index, int N) {
+void rsort_with_index(const CompFunc& cf, double* x, int* index, int N) {
   // sorts on x, applies same permutation to index
   std::vector<int> p(N, 0);
   std::iota(p.begin(), p.end(), 0);
-  std::sort(p.begin(), p.end(), [&](int a, int b) { return x[a] < x[b]; });
+  std::sort(p.begin(), p.end(), [&](int a, int b) { return cf(x[a], x[b]); });
   apply_permutation(p, x, index);
 }
 

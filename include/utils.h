@@ -1,6 +1,8 @@
 #ifndef pyNNGP_Utils_h
 #define pyNNGP_Utils_h
 
+#include "distFunc.h"
+
 #include <Eigen/Dense>
 #include <random>
 #include <vector>
@@ -9,6 +11,7 @@ using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
 namespace pyNNGP {
+
 int which(int a, int* b, int n);
 
 template <typename... Args>
@@ -17,7 +20,7 @@ void apply_permutation(std::vector<int>& p, Args*... args);
 template <typename... Args>
 void apply_permutation(std::vector<int>& p, Args&... args);
 
-void rsort_with_index(double* x, int* index, int N);
+void rsort_with_index(const CompFunc& cf, double* x, int* index, int N);
 
 double logit(double theta, double a, double b);
 double logitInv(double z, double a, double b);
